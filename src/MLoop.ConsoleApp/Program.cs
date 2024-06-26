@@ -1,10 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using MLoop.Actions;
-using MLoop.Contracts;
-using MLoop.Services;
-using System.Threading.Channels;
 
 namespace MLoop.ConsoleApp
 {
@@ -19,16 +15,7 @@ namespace MLoop.ConsoleApp
                 })
                 .ConfigureServices((context, services) =>
                 {
-                    services.Configure<MLoopOptions>(context.Configuration.GetSection("MLoop"));
-
-                    services.AddSingleton<IMLFileProvider, LocalFileProvider>();
-                    services.AddSingleton<BuildModelActionExecutor>();
-
-                    var channel = Channel.CreateUnbounded<BuildModelAction>();
-                    services.AddSingleton(channel);
-
-                    services.AddHostedService<MLoopService>();
-                    services.AddHostedService<MLoopFileWatcher>();
+                    services.ConfiguresMLoop(context);
                 })
                 .Build();
 
