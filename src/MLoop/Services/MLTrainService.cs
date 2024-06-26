@@ -20,7 +20,7 @@ namespace MLoop.Services
             await Task.Delay(random.Next(10, 500)); // 임시 딜레이
 
             var dir = Path.GetDirectoryName(dataPath)!;
-            var key = await TrainStateHandler.ResolveKey(dir);
+            var key = await TrainStateHandler.ResolveKey(dir); // 기존 키를 가져오거나 새로 생성 (Status: Pending)
             return pool.Train(new TrainRequest(key, options, dataPath, testPath));
         }
 

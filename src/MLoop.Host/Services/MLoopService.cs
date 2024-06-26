@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.VisualBasic;
 using MLoop.Actions;
 using System.Collections.Concurrent;
 using System.Text.Json;
@@ -19,7 +18,6 @@ namespace MLoop.Services
         private readonly TimeSpan _eventDebounceInterval = TimeSpan.FromSeconds(1);
         private const string invokeFileName = "action.json";
         private const string skipFileName = "result.json";
-        private const string stateFileName = "state.log";
 
         public MLoopService(ILogger<MLoopService> logger, IServiceProvider serviceProvider, IOptions<MLoopOptions> options)
         {
@@ -118,19 +116,12 @@ namespace MLoop.Services
             await executor.ExecuteAsync(action, CancellationToken.None);
 
             _logger.LogInformation("Enqueued action from {filePath}", filePath);
-            LogState("PENDING");
         }
 
         private static bool IsAbsolutePath(string path)
         {
             var uri = new Uri(path, UriKind.RelativeOrAbsolute);
             return uri.IsAbsoluteUri;
-        }
-
-        private void LogState(string state)
-        {
-            var logEntry = $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}|{state}";
-            File.AppendAllLines(Path.Combine(_options.Path, stateFileName), [logEntry]);
         }
 
         public override Task StopAsync(CancellationToken stoppingToken)
