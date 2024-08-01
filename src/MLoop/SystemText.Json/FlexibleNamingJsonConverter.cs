@@ -1,7 +1,8 @@
 ﻿using System.Text.Json.Serialization;
 using System.Reflection;
+using System.Text.Json;
 
-namespace System.Text.Json
+namespace MLoop.SystemText.Json
 {
     public class FlexibleNamingJsonConverter : JsonConverter<object>
     {

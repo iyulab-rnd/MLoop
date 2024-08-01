@@ -1,6 +1,7 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 
-namespace System.Text.Json
+namespace MLoop.SystemText.Json
 {
     public static class JsonHelper
     {

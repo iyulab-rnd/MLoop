@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.Configuration;
 using MLoop;
 using MLoop.Actions;
 using MLoop.Services;
@@ -7,12 +7,12 @@ namespace Microsoft.Extensions.DependencyInjection
 {
     public static class ServiceCollectionExtensions
     {
-        public static void ConfiguresMLoop(this IServiceCollection services, HostBuilderContext context)
+        public static void ConfiguresMLoop(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddSingleton<MLTrainService>();
+            services.AddSingleton<IMLTrainService, LocalMLTrainService>();
             services.AddTransient<MLTrainActionExecutor>();
 
-            services.Configure<MLoopOptions>(context.Configuration.GetSection("MLoop"));
+            services.Configure<MLoopOptions>(configuration.GetSection("MLoop"));
             services.AddHostedService<MLoopService>();
         }
     }

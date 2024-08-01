@@ -1,8 +1,8 @@
 ﻿using MLoop.Models;
+using MLoop.SystemText.Json;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
-using System.Text.Json;
 
 namespace MLoop.Services
 {
@@ -38,6 +38,8 @@ namespace MLoop.Services
             var scenario = GetScenario(mlOptions.Scenario);
             var dir = Path.GetDirectoryName(request.DataPath)!;
             var logFilePath = Path.Combine(dir, "console.log");
+
+            if (File.Exists(logFilePath)) File.Delete(logFilePath); // 기존 로그 파일 삭제
 
             try
             {

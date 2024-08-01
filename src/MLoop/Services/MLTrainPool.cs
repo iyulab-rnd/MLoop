@@ -43,5 +43,10 @@ namespace MLoop.Services
                 yield return $"{i + 1}: {threads[i].WorkingModelKey ?? "Idle"}";
             }
         }
+
+        public int GetQueueLength()
+        {
+            return queue.Count;
+        }
     }
 }

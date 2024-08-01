@@ -2,7 +2,7 @@
 using System.Text.Json;
 using Humanizer;
 
-namespace System.Text.Json
+namespace MLoop.SystemText.Json
 {
     internal class FlexibleNamingPolicy : JsonNamingPolicy
     {

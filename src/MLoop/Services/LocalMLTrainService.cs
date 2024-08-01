@@ -4,12 +4,12 @@ using System;
 
 namespace MLoop.Services
 {
-    public class MLTrainService
+    public class LocalMLTrainService : IMLTrainService
     {
         private readonly MLTrainPool pool;
         private readonly Random random = new();
 
-        public MLTrainService(IConfiguration configuration)
+        public LocalMLTrainService(IConfiguration configuration)
         {
             var threads = configuration.Resolve<int>("MLoop:Threads");
             this.pool = new MLTrainPool(threads);
@@ -27,6 +27,11 @@ namespace MLoop.Services
         public IEnumerable<string> GetWorkingModels()
         {
             return pool.GetWorkingModels();
+        }
+
+        public int GetQueueLength()
+        {
+            return pool.GetQueueLength();
         }
     }
 }

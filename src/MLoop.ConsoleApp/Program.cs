@@ -15,7 +15,7 @@ namespace MLoop.ConsoleApp
                 })
                 .ConfigureServices((context, services) =>
                 {
-                    services.ConfiguresMLoop(context);
+                    services.ConfiguresMLoop(context.Configuration);
                 })
                 .Build();
 

@@ -1,14 +1,13 @@
 ﻿using MLoop.Models;
 using MLoop.Services;
-using MLoop.Utils;
 
 namespace MLoop.Actions
 {
     public class MLTrainAction
     {
         public required TrainOptions Options { get; set; }
-        public string? DataPath { get; internal set; }
-        public string? TestPath { get; internal set; }
+        public string? DataPath { get; set; }
+        public string? TestPath { get; set; }
     }
 
     public class MLTrainActionResult
@@ -18,9 +17,9 @@ namespace MLoop.Actions
 
     public class MLTrainActionExecutor
     {
-        private readonly MLTrainService service;
+        private readonly IMLTrainService service;
 
-        public MLTrainActionExecutor(MLTrainService service)
+        public MLTrainActionExecutor(IMLTrainService service)
         {
             this.service = service;
         }

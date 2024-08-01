@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MLoop.Actions;
 using System.Collections.Concurrent;
-using System.Text.Json;
 
 namespace MLoop.Services
 {
@@ -90,7 +89,7 @@ namespace MLoop.Services
             MLTrainAction? action;
             try
             {
-                action = JsonHelper.Deserialize<MLTrainAction>(File.ReadAllText(filePath));
+                action = MLoop.SystemText.Json.JsonHelper.Deserialize<MLTrainAction>(File.ReadAllText(filePath));
                 if (action == null)
                 {
                     throw new InvalidDataException($"Failed to deserialize action from {filePath}");
