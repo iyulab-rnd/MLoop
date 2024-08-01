@@ -33,5 +33,11 @@ namespace MLoop.Services
         {
             return pool.GetQueueLength();
         }
+
+        // 작업 가능한 스레드가 있으면 true
+        public bool CanWorking()
+        {
+            return pool.CanWorking();
+        }
     }
 }

@@ -1,6 +1,4 @@
-﻿using System.Text.Json.Serialization;
-
-namespace MLoop.Models
+﻿namespace MLoop.Models
 {
     public enum ModelScenarios
     {

@@ -48,5 +48,11 @@ namespace MLoop.Services
         {
             return queue.Count;
         }
+
+        // 유휴 상태인 스레드가 있으면 true
+        public bool CanWorking()
+        {   
+            return threads.Any(p => p.WorkingModelKey == null);
+        }
     }
 }
