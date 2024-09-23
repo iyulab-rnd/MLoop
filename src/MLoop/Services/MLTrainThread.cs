@@ -3,6 +3,8 @@ using MLoop.SystemText.Json;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
+using System.Text.Json;
+using System.Xml;
 
 namespace MLoop.Services
 {
@@ -35,7 +37,7 @@ namespace MLoop.Services
             Console.WriteLine($"Processing request {request} started.");
 
             var mlOptions = request.Options;
-            var scenario = GetScenario(mlOptions.Scenario);
+            var scenarioType = GetScenarioType(request.Type);
             var dir = Path.GetDirectoryName(request.DataPath)!;
             var logFilePath = Path.Combine(dir, "console.log");
 
@@ -56,8 +58,14 @@ namespace MLoop.Services
                 if (request.TestPath != null) options["--validation-dataset"] = request.TestPath;
                 if (mlOptions.HasHeader) options["--has-header"] = "true";
                 if (mlOptions.AllowQuote) options["--allow-quote"] = "true";
+                
                 if (!string.IsNullOrEmpty(mlOptions.LabelCol)) options["--label-col"] = mlOptions.LabelCol;
                 if (!string.IsNullOrEmpty(mlOptions.IgnoreCols)) options["--ignore-cols"] = mlOptions.IgnoreCols;
+
+                if (!string.IsNullOrEmpty(mlOptions.UserCol)) options["--user-col"] = mlOptions.UserCol;
+                if (!string.IsNullOrEmpty(mlOptions.ItemCol)) options["--item-col"] = mlOptions.ItemCol;
+                if (!string.IsNullOrEmpty(mlOptions.RatingCol)) options["--rating-col"] = mlOptions.RatingCol;
+
                 if (mlOptions.TrainTime != null) options["--train-time"] = $"{mlOptions.TrainTime}";
 
                 string arguments = string.Empty;
@@ -75,7 +83,7 @@ namespace MLoop.Services
                     {
                         WorkingDirectory = currentPath,
                         FileName = "mlnet",
-                        Arguments = $"{scenario} {arguments}",
+                        Arguments = $"{scenarioType} {arguments}",
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
                         UseShellExecute = false,
@@ -119,18 +127,71 @@ namespace MLoop.Services
             this.WorkingModelKey = null;
         }
 
-        private async Task SaveResultFileAsync(string dir)
+        private static async Task SaveResultFileAsync(string dir)
         {
-            var filePath = Path.Combine(dir, "result.json");
-            var result = new
-            {
-                Trainer = "LbfgsMaximumEntropyMulti",
-                MacroAccuracy = 0.8494,
-                Duration = 0.3490
-            };
+            await Task.Delay(TimeSpan.FromSeconds(1));
 
-            var json = JsonHelper.Serialize(result);
-            await File.WriteAllTextAsync(filePath, json);
+            var resultFilePath = Path.Combine(dir, "result.json");
+            var mbconfigFilePath = Path.Combine(dir, "Model", "Model.mbconfig");
+
+            if (File.Exists(mbconfigFilePath))
+            {
+                try
+                {
+                    // Model.mbconfig 파일 읽기
+                    var mbconfigJson = await File.ReadAllTextAsync(mbconfigFilePath);
+                    using JsonDocument doc = JsonDocument.Parse(mbconfigJson);
+
+                    // RunHistory.Trials 배열 가져오기
+                    if (doc.RootElement.TryGetProperty("RunHistory", out JsonElement runHistory) &&
+                        runHistory.TryGetProperty("Trials", out JsonElement trials) &&
+                        trials.ValueKind == JsonValueKind.Array &&
+                        trials.GetArrayLength() > 0)
+                    {
+                        // 가장 높은 Score를 가진 Trial 찾기
+                        var bestTrial = trials.EnumerateArray()
+                            .OrderByDescending(t => t.GetProperty("Score").GetDouble())
+                            .FirstOrDefault();
+
+                        if (bestTrial.ValueKind != JsonValueKind.Undefined)
+                        {
+                            // 익명 클래스로 결과 생성
+                            var result = new
+                            {
+                                TrainerName = bestTrial.GetProperty("TrainerName").GetString(),
+                                Score = bestTrial.GetProperty("Score").GetDouble()
+                            };
+
+                            // JSON 직렬화 및 파일 저장
+                            var json = JsonHelper.Serialize(result);
+                            await File.WriteAllTextAsync(resultFilePath, json);
+                        }
+                        else
+                        {
+                            throw new Exception("Trials 배열에 유효한 항목이 없습니다.");
+                        }
+                    }
+                    else
+                    {
+                        throw new Exception("RunHistory.Trials 섹션을 찾을 수 없습니다.");
+                    }
+                }
+                catch (Exception)
+                {
+#if DEBUG
+                    Debugger.Break();
+#endif
+                    var result = new { };
+                    var json = JsonHelper.Serialize(result);
+                    await File.WriteAllTextAsync(resultFilePath, json);
+                }
+            }
+            else
+            {   
+                var result = new { };
+                var json = JsonHelper.Serialize(result);
+                await File.WriteAllTextAsync(resultFilePath, json);
+            }
         }
 
         private static async Task<string> LogOutputAsync(StreamReader reader, StreamWriter writer)
@@ -165,17 +226,17 @@ namespace MLoop.Services
             return error.ToString();
         }
 
-        private static string GetScenario(ModelScenarios scenario)
+        private static string GetScenarioType(MLScenarioTypes scenario)
         {
             return scenario switch
             {
-                ModelScenarios.Classification => "classification",
-                ModelScenarios.Regression => "regression",
-                ModelScenarios.Forecasting => "forecasting",
-                ModelScenarios.Recommendation => "recommendation",
-                ModelScenarios.ImageClassification => "image-classification",
-                ModelScenarios.ObjectDetection => "object-detection",
-                ModelScenarios.TextClassification => "text-classification",
+                MLScenarioTypes.Classification => "classification",
+                MLScenarioTypes.Regression => "regression",
+                MLScenarioTypes.Forecasting => "forecasting",
+                MLScenarioTypes.Recommendation => "recommendation",
+                MLScenarioTypes.ImageClassification => "image-classification",
+                MLScenarioTypes.ObjectDetection => "object-detection",
+                MLScenarioTypes.TextClassification => "text-classification",
                 _ => throw new Exception("Invalid scenario"),
             };
         }

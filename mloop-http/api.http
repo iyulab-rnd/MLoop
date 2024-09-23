@@ -1,0 +1,22 @@
+@host = https://localhost:7039
+
+@scenario = scenario_1
+@model = nD05HPCA
+
+### GET ML-Scenarios
+GET {{host}}/api/scenarios
+
+### GET ML-Scenario
+GET {{host}}/api/scenarios/{{scenario}}
+
+### GET ML-Models
+GET {{host}}/api/scenarios/{{scenario}}/models
+
+### CREATE New Model
+POST {{host}}/api/scenarios/{{scenario}}/new-train
+
+### GET ML-Model
+GET {{host}}/api/scenarios/{{scenario}}/models/{{model}}
+
+### GET ML-Model Train Log
+# GET {{host}}/api/scenarios/{{scenario}}/models/{{model}}/log

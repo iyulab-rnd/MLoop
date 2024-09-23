@@ -5,6 +5,7 @@ namespace MLoop.Actions
 {
     public class MLTrainAction
     {
+        public MLScenarioTypes Type { get; set; }
         public required TrainOptions Options { get; set; }
         public string? DataPath { get; set; }
         public string? TestPath { get; set; }
@@ -12,27 +13,33 @@ namespace MLoop.Actions
 
     public class MLTrainActionResult
     {
+        public required string Key { get; set; }
         public TrainStatus Status { get; internal set; }
     }
 
     public class MLTrainActionExecutor
     {
-        private readonly IMLTrainService service;
+        private readonly MLTrainService service;
 
-        public MLTrainActionExecutor(IMLTrainService service)
+        public MLTrainActionExecutor(MLTrainService service)
         {
             this.service = service;
         }
 
-        public async Task<MLTrainActionResult> ExecuteAsync(MLTrainAction action, CancellationToken token)
+        public async Task<MLTrainActionResult> ExecuteAsync(MLTrainAction action)
         {
-            var dataPath = action.DataPath ?? "./data.csv";
+            var dataPath = action.DataPath ?? throw new Exception($"Required DataPath");
             var testPath = action.TestPath;
 
-            var res = await service.TrainRequestAsync(action.Options, dataPath, testPath);
+            var res = await service.TrainRequestAsync(
+                action.Type,
+                action.Options, 
+                dataPath, 
+                testPath);
 
             return new MLTrainActionResult
             {
+                Key = res.Key,
                 Status = res.Status
             };
         }
