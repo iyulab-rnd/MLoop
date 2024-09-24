@@ -2,41 +2,74 @@
 
 internal static class RetryFile
 {
-    /// <summary>
-    /// 지정된 파일 경로에서 모든 텍스트를 비동기적으로 읽습니다.
-    /// 일시적인 오류가 발생할 경우 최대 3번까지 재시도합니다.
-    /// </summary>
-    /// <param name="filePath">읽을 파일의 경로입니다.</param>
-    /// <returns>파일의 내용이 문자열로 반환되거나, 실패 시 null을 반환합니다.</returns>
+    private const int MaxRetries = 3;
+    private const int DelayMilliseconds = 500;
+
     internal static async Task<string?> ReadAllTextAsync(string filePath)
     {
-        const int maxRetries = 3; // 최대 재시도 횟수
-        const int delayMilliseconds = 500; // 초기 지연 시간 (밀리초)
+        return await RetryOperationAsync(() => File.ReadAllTextAsync(filePath));
+    }
 
-        for (int attempt = 1; attempt <= maxRetries; attempt++)
+    internal static async Task WriteAllTextAsync(string filePath, string contents)
+    {
+        await RetryOperationAsync(() => File.WriteAllTextAsync(filePath, contents));
+    }
+
+    internal static async Task AppendAllTextAsync(string filePath, string contents)
+    {
+        await RetryOperationAsync(() => File.AppendAllTextAsync(filePath, contents));
+    }
+
+    internal static async Task<string?> ReadFirstLineAsync(string filePath)
+    {
+        return await RetryOperationAsync(async () =>
+        {
+            using var reader = new StreamReader(filePath);
+            return await reader.ReadLineAsync();
+        });
+    }
+
+    private static async Task<T?> RetryOperationAsync<T>(Func<Task<T>> operation)
+    {
+        for (int attempt = 1; attempt <= MaxRetries; attempt++)
         {
             try
             {
-                // 파일을 비동기적으로 읽습니다.
-                return await File.ReadAllTextAsync(filePath);
+                return await operation();
             }
-            catch (IOException) when (attempt < maxRetries)
+            catch (IOException) when (attempt < MaxRetries)
             {
-                // 지연 시간을 증가시켜 재시도합니다 (지수 백오프).
-                await Task.Delay(delayMilliseconds * attempt);
+                await Task.Delay(DelayMilliseconds * attempt);
             }
-            catch (UnauthorizedAccessException) when (attempt < maxRetries)
+            catch (UnauthorizedAccessException) when (attempt < MaxRetries)
             {
-                await Task.Delay(delayMilliseconds * attempt);
-            }
-            catch (Exception)
-            {
-                throw;
+                await Task.Delay(DelayMilliseconds * attempt);
             }
         }
 
-        // 모든 재시도가 실패한 경우 null을 반환합니다.
-        Console.WriteLine($"Failed to read the file after {maxRetries} attempts.");
-        return null;
+        Console.WriteLine($"Failed to perform operation after {MaxRetries} attempts.");
+        return default;
+    }
+
+    private static async Task RetryOperationAsync(Func<Task> operation)
+    {
+        for (int attempt = 1; attempt <= MaxRetries; attempt++)
+        {
+            try
+            {
+                await operation();
+                return;
+            }
+            catch (IOException) when (attempt < MaxRetries)
+            {
+                await Task.Delay(DelayMilliseconds * attempt);
+            }
+            catch (UnauthorizedAccessException) when (attempt < MaxRetries)
+            {
+                await Task.Delay(DelayMilliseconds * attempt);
+            }
+        }
+
+        Console.WriteLine($"Failed to perform operation after {MaxRetries} attempts.");
     }
 }

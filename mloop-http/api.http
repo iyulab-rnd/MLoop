@@ -13,10 +13,72 @@ GET {{host}}/api/scenarios/{{scenario}}
 GET {{host}}/api/scenarios/{{scenario}}/models
 
 ### CREATE New Model
-POST {{host}}/api/scenarios/{{scenario}}/new-train
+POST {{host}}/api/scenarios/{{scenario}}/train
 
 ### GET ML-Model
 GET {{host}}/api/scenarios/{{scenario}}/models/{{model}}
 
 ### GET ML-Model Train Log
 # GET {{host}}/api/scenarios/{{scenario}}/models/{{model}}/log
+
+### POST Data Submit (JSON)
+POST {{host}}/api/scenarios/{{scenario}}/data
+Content-Type: application/json
+
+[
+    {
+        "userId": 900,
+        "movieId": 240,
+        "rating": 4
+    },
+    {
+        "userId": 900,
+        "movieId": 241,
+        "rating": 5
+    },
+    {
+        "userId": 900,
+        "movieId": 242,
+        "rating": 3.5
+    }
+]
+
+### POST Data Submit (CSV)
+POST {{host}}/api/scenarios/{{scenario}}/data
+Content-Type: text/csv
+
+userId,movieId,rating
+900,240,4
+900,241,5
+900,242,3.5
+
+### POST ML-Model Predict (JSON)
+POST {{host}}/api/scenarios/{{scenario}}/predict
+Content-Type: application/json
+
+[
+    {
+        "userId": 900,
+        "movieId": 240
+    },
+    {
+        "userId": 900,
+        "movieId": 241
+    },
+    {
+        "userId": 900,
+        "movieId": 242
+    }    
+]
+
+### POST ML-Model Predict (CSV)
+POST {{host}}/api/scenarios/{{scenario}}/predict
+Content-Type: text/csv
+
+userId,movieId
+1,101
+1,110
+1,151
+
+### GET ML-Model Predict
+GET {{host}}/api/scenarios/{{scenario}}/predict/input_8
