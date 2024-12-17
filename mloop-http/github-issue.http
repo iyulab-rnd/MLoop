@@ -1,0 +1,49 @@
+@baseUrl = https://localhost:7102
+@scenarioId = f6b5c1bf24f343cf98e8aebc32899a99
+@jobId = 1
+
+### 시나리오 검색
+GET {{baseUrl}}/scenarios
+
+### 1. Create a new scenario for GitHub issue classification
+POST {{baseUrl}}/scenarios
+Content-Type: application/json
+
+{
+    "name": "GitHub Issue Area Classification",
+    "command": "classification",
+    "tags": ["github", "issue", "area"]
+}
+
+### 2. Upload train data
+
+POST {{baseUrl}}/scenarios/{{scenarioId}}/data/train
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="issues_train.tsv"
+Content-Type: text/tab-separated-values
+
+< ../files/GitHubIssueClassification/issues_train.tsv
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 3. Upload test data
+POST {{baseUrl}}/scenarios/{{scenarioId}}/data/Test
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="issues_test.tsv"
+Content-Type: text/tab-separated-values
+
+< ../files/GitHubIssueClassification/issues_test.tsv
+--boundary--
+
+### 4. Start training
+# @name startTrain
+POST {{baseUrl}}/scenarios/{{scenarioId}}/train
+
+### 5. Check training job status
+GET {{baseUrl}}/jobs/{{jobId}}
+
+### 6. Get scenario details (to check trained models)
+GET {{baseUrl}}/scenarios/{{scenarioId}}

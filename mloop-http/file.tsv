@@ -1,0 +1,3 @@
+ID	Area	Title	Description
+17	area-System.Xml	Some XPath.XDocument tests are failing	Some XPath.XDocument queries have different results than other XPath navigators. This might be an old behavior or newly introduced bug.  Failing tests: build /p=IncludeTraits=ActiveIssue=17 
+20	area-System.Xml	2 XPath.XDocument tests fail because of lacking feature	"XPath.XDocument navigator doesn't support MoveToId(string).  Verify if this was ever supported. If it was, verify if we want to support it in the future. If it wasn't move the tests to a different file and remove them from XPath.XDocument.Tests project.  Failing tests: NodeSetFunctionsTest2267 MatchesTest2352  <!--- @huboard:{""order"":20.0,""milestone_order"":20,""custom_state"":""""} --> "

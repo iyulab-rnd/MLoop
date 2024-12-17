@@ -1,84 +1,45 @@
-@host = https://localhost:7039
+@host = https://localhost:7102
 
-@scenario = scenario_1
-@model = nD05HPCA
-
-### GET ML-Scenarios
-GET {{host}}/api/scenarios
-
-### GET ML-Scenario
-GET {{host}}/api/scenarios/{{scenario}}
-
-### GET ML-Models
-GET {{host}}/api/scenarios/{{scenario}}/models
-
-### CREATE New Model
-POST {{host}}/api/scenarios/{{scenario}}/train
-
-### GET ML-Model
-GET {{host}}/api/scenarios/{{scenario}}/models/{{model}}
-
-### GET ML-Model Train Log
-# GET {{host}}/api/scenarios/{{scenario}}/models/{{model}}/log
-
-### POST Data Submit (JSON)
-POST {{host}}/api/scenarios/{{scenario}}/data
+### 시나리오 생성
+POST {{host}}/scenarios
 Content-Type: application/json
 
-[
-    {
-        "userId": 900,
-        "movieId": 240,
-        "rating": 4
-    },
-    {
-        "userId": 900,
-        "movieId": 241,
-        "rating": 5
-    },
-    {
-        "userId": 900,
-        "movieId": 242,
-        "rating": 3.5
-    }
-]
+{
+    "name": "My Classification Model",
+    "command": "classification",
+    "tags": ["customer-data", "classification", "prototype"]
+}
 
-### POST Data Submit (CSV)
-POST {{host}}/api/scenarios/{{scenario}}/data
-Content-Type: text/csv
+### 시나리오 검색
+GET {{host}}/scenarios
 
-userId,movieId,rating
-900,240,4
-900,241,5
-900,242,3.5
-
-### POST ML-Model Predict (JSON)
-POST {{host}}/api/scenarios/{{scenario}}/predict
+### 시나리오 수정
+PUT {{host}}/scenarios/{scenarioId}
 Content-Type: application/json
 
-[
-    {
-        "userId": 900,
-        "movieId": 240
-    },
-    {
-        "userId": 900,
-        "movieId": 241
-    },
-    {
-        "userId": 900,
-        "movieId": 242
-    }    
-]
+{
+    "name": "Updated Classification Model",
+    "command": "classification",
+    "tags": ["customer-data", "production"]
+}
 
-### POST ML-Model Predict (CSV)
-POST {{host}}/api/scenarios/{{scenario}}/predict
-Content-Type: text/csv
+### 학습 데이터 업로드
+POST {{host}}/scenarios/{scenarioId}/data/Train
+Content-Type: multipart/form-data
 
-userId,movieId
-1,101
-1,110
-1,151
+[파일 데이터]
 
-### GET ML-Model Predict
-GET {{host}}/api/scenarios/{{scenario}}/predict/input_8
+### 테스트 데이터 업로드
+POST {{host}}/scenarios/{scenarioId}/data/Test
+Content-Type: multipart/form-data
+
+[파일 데이터]
+
+### 시나리오 정보 조회
+GET {{host}}/scenarios/{scenarioId}
+
+### 학습 실행
+POST {{host}}/scenarios/{scenarioId}/train
+
+### 예측 실행
+POST {{host}}/scenarios/{scenarioId}/predict

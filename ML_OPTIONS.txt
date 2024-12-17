@@ -1,0 +1,232 @@
+> mlnet -h
+
+Usage:
+  mlnet [options] [command]
+
+Options:
+  --version <version>    Show version information.
+  -?, -h, --help <help>  Show help and usage information. 
+  
+Commands:
+  classification        Train a custom ML.NET model for classification. Learn more about classification at aka.ms/cli-classification.
+  regression            Train a custom ML.NET model for regression. Learn more about regression at aka.ms/cli-regression.
+  recommendation        Train a custom ML.NET model for recommendation. Learn more about recommendation at aka.ms/cli-recommendation.
+  train                 train using training config file
+  image-classification  Train a custom ML.NET model for image classification. Learn more about classification at aka.ms/cli-image-classification.
+  text-classification   Train a custom ML.NET model for text classification using deep learning. Learn more about text classification (aka.ms/cli-text-classification)
+  forecasting           Train a custom ML.NET model for time series forecasting.
+  object-detection      Train local object detection model.
+
+  classification, regression, recommendation, image-classification, text-classification, forecasting, object-detection
+
+>mlnet classification -h
+Option '--dataset' is required.
+Option '--label-col' is required.
+Unrecognized command or argument '-h'
+
+classification
+  Train a custom ML.NET model for classification. Learn more about classification at aka.ms/cli-classification.
+
+Usage:
+  mlnet [options] classification
+
+Options:
+  --dataset <dataset> (REQUIRED)             File path to single dataset or training dataset for train/test approaches.
+  --label-col <label-col> (REQUIRED)         Name or zero-based index of label (target) column to predict.
+  --allow-quote                              Allow quote when parsing dataset, default to false [default: False]
+  --cache <Auto|Off|On>                      Specify [On|Off|Auto] for cache to be turned on, off, or auto-determined (default). [default: Auto]
+  --cv-fold <cv-fold>                        Number of folds used for cross-validation. Don't specify if --split-ratio or --validation-dataset are set.
+  --has-header                               Specify [true|false] depending if dataset file(s) have header row. Use auto-detect if this flag is not set.
+  --ignore-cols <ignore-cols>                Specify columns to be ignored in given dataset. Use space-seperated column names or zero-based indexes.
+  --log-file-path <log-file-path>            Path to log file.
+  --name <name>                              Name for output project or solution to create. Default is SampleClassification. [default: SampleClassification]
+  -o, --output <output>                      Location folder for generated output. Default is current directory.
+  --read-multi-lines                         Read multiple lines when parsing data, default to false [default: False]
+  --split-ratio <split-ratio>                Percent of dataset to use for validation. Range must be between 0 and 1. Don't specify if --cross-validation or --validation-dataset are set.
+  --train-time <train-time>                  Maximum time in seconds for exploring models with best configuration. Default time is 100 sec. [default: 100]
+  --validation-dataset <validation-dataset>  File path for validation dataset in train/validation approaches.
+  -v, --verbosity <verbosity>                Output verbosity choices: q[uiet], m[inimal] (default) and diag[nostic]. [default: m]
+
+Required options: --dataset, --label-col
+
+>mlnet regression -h
+Option '--dataset' is required.
+Option '--label-col' is required.
+Unrecognized command or argument '-h'
+
+regression
+  Train a custom ML.NET model for regression. Learn more about regression at aka.ms/cli-regression.
+
+Usage:
+  mlnet [options] regression
+
+Options:
+  --dataset <dataset> (REQUIRED)             File path to single dataset or training dataset for train/test approaches.
+  --label-col <label-col> (REQUIRED)         Name or zero-based index of label (target) column to predict.
+  --allow-quote                              Allow quote when parsing dataset, default to false [default: False]
+  --cache <Auto|Off|On>                      Specify [On|Off|Auto] for cache to be turned on, off, or auto-determined (default). [default: Auto]
+  --cv-fold <cv-fold>                        Number of folds used for cross-validation. Don't specify if --split-ratio or --validation-dataset are set.
+  --has-header                               Specify [true|false] depending if dataset file(s) have header row. Use auto-detect if this flag is not set.
+  --ignore-cols <ignore-cols>                Specify columns to be ignored in given dataset. Use space-seperated column names or zero-based indexes.
+  --log-file-path <log-file-path>            Path to log file.
+  --name <name>                              Name for output project or solution to create. Default is SampleRegression.
+  -o, --output <output>                      Location folder for generated output. Default is current directory.
+  --read-multi-lines                         Read multiple lines when parsing data, default to false [default: False]
+  --split-ratio <split-ratio>                Percent of dataset to use for validation. Range must be between 0 and 1. Don't specify if --cross-validation or --validation-dataset are set.
+  --train-time <train-time>                  Maximum time in seconds for exploring models with best configuration. Default time is 100 sec. [default: 100]
+  --validation-dataset <validation-dataset>  File path for validation dataset in train/validation approaches.
+  -v, --verbosity <verbosity>                Output verbosity choices: q[uiet], m[inimal] (default) and diag[nostic]. [default: m]
+
+Required options: --dataset, --label-col
+
+>mlnet recommendation -h
+Option '--dataset' is required.
+Option '--item-col' is required.
+Option '--rating-col' is required.
+Option '--user-col' is required.
+Unrecognized command or argument '-h'
+
+recommendation
+  Train a custom ML.NET model for recommendation. Learn more about recommendation at aka.ms/cli-recommendation.
+
+Usage:
+  mlnet [options] recommendation
+
+Options:
+  --dataset <dataset> (REQUIRED)             File path to single dataset or training dataset for train/test approaches.
+  --item-col <item-col> (REQUIRED)           Name or zero-based index of item column. Items are recommended to users.
+  --rating-col <rating-col> (REQUIRED)       Name or zero-based index of ratings (target) column to predict.
+  --user-col <user-col> (REQUIRED)           Name or zero-based index of user column. Users receive recommended items.
+  --allow-quote                              Allow quote when parsing dataset, default to false [default: False]
+  --cache <Auto|Off|On>                      Specify [On|Off|Auto] for cache to be turned on, off, or auto-determined (default). [default: Auto]
+  --cv-fold <cv-fold>                        Number of folds used for cross-validation. Don't specify if --split-ratio or --validation-dataset are set.
+  --has-header                               Specify [true|false] depending if dataset file(s) have header row. Use auto-detect if this flag is not set.
+  --log-file-path <log-file-path>            Path to log file.
+  --name <name>                              Name for output project or solution to create. Default is SampleRecommendation.
+  -o, --output <output>                      Location folder for generated output. Default is current directory.
+  --read-multi-lines                         Read multiple lines when parsing data, default to false [default: False]
+  --split-ratio <split-ratio>                Percent of dataset to use for validation. Range must be between 0 and 1. Don't specify if --cross-validation or --validation-dataset are set.
+  --train-time <train-time>                  Maximum time in seconds for exploring models with best configuration. Default time is 100 sec. [default: 100]
+  --validation-dataset <validation-dataset>  File path for validation dataset in train/validation approaches.
+  -v, --verbosity <verbosity>                Output verbosity choices: q[uiet], m[inimal] (default) and diag[nostic]. [default: m]
+
+Required options: --dataset, --item-col, --rating-col, --user-col
+
+
+>mlnet image-classification -h
+Option '--dataset' is required.
+Unrecognized command or argument '-h'
+
+image-classification
+  Train a custom ML.NET model for image classification. Learn more about classification at aka.ms/cli-image-classification.
+
+Usage:
+  mlnet [options] image-classification
+
+Options:
+  --dataset <dataset> (REQUIRED)   Path to local folder which contains labelled sub-folders of all images.
+  --cache <Auto|Off|On>            Specify [On|Off|Auto] for cache to be turned on, off, or auto-determined (default). [default: Auto]
+  --log-file-path <log-file-path>  Path to log file.
+  --name <name>                    Name for output project or solution to create. Default is SampleImageClassification.
+  -o, --output <output>            Location folder for generated output. Default is current directory.
+  --test-dataset <test-dataset>    File path to parent folder that contains test dataset in train/test approaches.
+  -v, --verbosity <verbosity>      Output verbosity choices: q[uiet], m[inimal] (default) and diag[nostic]. [default: m]
+
+Required options: --dataset
+
+
+>mlnet text-classification -h
+Option '--dataset' is required.
+Option '--label-col' is required.
+Option '--text-col' is required.
+Unrecognized command or argument '-h'
+
+text-classification
+  Train a custom ML.NET model for text classification using deep learning. Learn more about text classification (aka.ms/cli-text-classification)
+
+Usage:
+  mlnet [options] text-classification
+
+Options:
+  --dataset <dataset> (REQUIRED)             File path to single dataset or training dataset for train/test approaches.
+  --label-col <label-col> (REQUIRED)         Name or zero-based index of label (target) column to predict.
+  --text-col <text-col> (REQUIRED)           Name or zero-based index of input text column to train the model
+  --allow-quote                              Allow quote when parsing dataset, default to false [default: False]
+  --batch-size <batch-size>                  Number of rows in the batch. [default: 10]
+  --cv-fold <cv-fold>                        Number of folds used for cross-validation. Don't specify if --split-ratio or --validation-dataset are set.
+  --device <device>                          The device used to train the model, can be either 'cpu' or cuda-supported device (for example 'cuda:0'). [default: cpu]
+  --has-header                               Specify [true|false] depending if dataset file(s) have header row. Use auto-detect if this flag is not set.
+  --log-file-path <log-file-path>            Path to log file.
+  --max-epoch <max-epoch>                    Maximum number of times to loop through your training set. [default: 10]
+  --name <name>                              Name for output project or solution to create. Default is SampleClassification
+  -o, --output <output>                      Location folder for generated output. Default is current directory.
+  --read-multi-lines                         Read multiple lines when parsing data, default to false [default: False]
+  --seed <seed>                              Seed used for random number generator. If set, results are repeatable and will remain the same across multiple runs.
+  --split-ratio <split-ratio>                Percent of dataset to use for validation. Range must be between 0 and 1. Don't specify if --cross-validation or --validation-dataset are set.
+  --validation-dataset <validation-dataset>  File path for validation dataset in train/validate approaches.
+  -v, --verbosity <verbosity>                Output verbosity choices: q[uiet], m[inimal] (default) and diag[nostic]. [default: m]
+
+Required options: --dataset, --label-col, --text-col
+
+>mlnet forecasting -h
+Option '--dataset' is required.
+Option '--horizon' is required.
+Option '--label-col' is required.
+Option '--time-col' is required.
+Unrecognized command or argument '-h'
+
+forecasting
+  Train a custom ML.NET model for time series forecasting.
+
+Usage:
+  mlnet [options] forecasting
+
+Options:
+  --dataset <dataset> (REQUIRED)             File path to single dataset or training dataset for train/test approaches.
+  --horizon <horizon> (REQUIRED)             Defines how many periods forward you would like to forecast. The horizon is in units of the time series frequency. Units are based on the time interval of your training data, for example, monthly, weekly that the forecaster should predict out.
+  --label-col <label-col> (REQUIRED)         Name or zero-based index of label (target) column to predict.
+  --time-col <time-col> (REQUIRED)           Used to specify the datetime column in the input data used for building the time series and inferring its frequency.
+  --allow-quote                              Allow quote when parsing dataset, default to false [default: False]
+  --cache <Auto|Off|On>                      Specify [On|Off|Auto] for cache to be turned on, off, or auto-determined (default). [default: Auto]
+  --cv-fold <cv-fold>                        Number of folds used for cross-validation. Don't specify if --split-ratio or --validation-dataset are set.
+  --has-header                               Specify [true|false] depending if dataset file(s) have header row. Use auto-detect if this flag is not set.
+  --log-file-path <log-file-path>            Path to log file.
+  --name <name>                              Name for output project or solution to create. Default is SampleClassification. [default: SampleClassification]
+  -o, --output <output>                      Location folder for generated output. Default is current directory.
+  --read-multi-lines                         Read multiple lines when parsing data, default to false [default: False]
+  --split-ratio <split-ratio>                Percent of dataset to use for validation. Range must be between 0 and 1. Don't specify if --cross-validation or --validation-dataset are set.
+  --train-time <train-time>                  Maximum time in seconds for exploring models with best configuration. Default time is 100 sec. [default: 100]
+  --validation-dataset <validation-dataset>  File path for validation dataset in train/validation approaches.
+  -v, --verbosity <verbosity>                Output verbosity choices: q[uiet], m[inimal] (default) and diag[nostic]. [default: m]
+
+Required options: --dataset, --horizon, --label-col, --time-col
+
+>mlnet object-detection -h
+Option '--dataset' is required.
+Required argument missing for option: -h
+
+object-detection
+  Train local object detection model.
+
+Usage:
+  mlnet [options] object-detection
+
+Options:
+  -n, --name <name>                               Name for output project or solution to create. Default is SampleObjectDetection
+  -d, --dataset <dataset> (REQUIRED)              File path to single dataset or training dataset for train/test approaches.
+  -vd, --validation-dataset <validation-dataset>  File path for validation dataset in train/validate approaches.
+  -sr, --split-ratio <split-ratio>                Percent of dataset to use for validation. Range must be between 0 and 1. Don't specify if --cross-validation or --validation-dataset are set.
+  -cv, --cross-validation <cross-validation>      Number of folds used for cross-validation. Don't specify if --split-ratio or --validation-dataset are set.
+  --device <device>                               The device used to train the model, can be either 'cpu' or cuda-supported device (for example 'cuda:0'). [default: cpu]
+  -s, --seed <seed>                               Seed used for random number generator. If set, results are repeatable and will remain the same across multiple runs.
+  -b, --batch-size <batch-size>                   Number of rows in the batch. [default: 10]
+  -e, --epoch <epoch>                             Maximum number of times to loop through your training set. [default: 5]
+  -w, --width <width>                             Image resize width in pixels. [default: 800]
+  -h, --height <height>                           Image resize height in pixels. [default: 600]
+  -st, --score-threshold <score-threshold>        Score threshold. Range between 0 and 1. [default: 0.5]
+  -it, --iou-threshold <iou-threshold>            Intersection-over-Union (IoU) Threashold.  Range between 0 and 1. [default: 0.5]
+  -o, --output <output>                           Location folder for generated output. Default is current directory.
+  -l, --log-file-path <log-file-path>             Path to log file.
+  -v, --verbose <verbose>                         Output verbosity choices: q[uiet], m[inimal] (default) and diag[nostic]. [default: m]
+
+Required options: -d

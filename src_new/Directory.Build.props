@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <NoWarn>IDE0290</NoWarn>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,16 @@
+{
+  "ScenarioId": "f6b5c1bf24f343cf98e8aebc32899a99",
+  "Name": "GitHub Issue Area Classification",
+  "Tags": [
+    "github",
+    "issue",
+    "area"
+  ],
+  "Command": "classification",
+  "Models": [],
+  "CreatedAt": "2024-12-17T02:03:24.9209097Z",
+  "LastTrainDataUpdate": "2024-12-17T03:31:35.2490785Z",
+  "LastTestDataUpdate": "2024-12-17T03:31:36.5014958Z",
+  "TrainDataPath": "D:/data/MLoop/storage\\scenarios\\f6b5c1bf24f343cf98e8aebc32899a99\\data\\train\\data_20241217033135.csv",
+  "TestDataPath": "D:/data/MLoop/storage\\scenarios\\f6b5c1bf24f343cf98e8aebc32899a99\\data\\test\\data_20241217033136.csv"
+}

@@ -24,18 +24,18 @@ public class ApiController : ControllerBase
         return service.GetMLScenariosAsync();
     }
 
-    [HttpGet("scenarios/{scenarioName}")]
-    public async Task<MLScenario> GetScenario(string scenarioName)
+    [HttpGet("scenarios/{scenarioId}")]
+    public async Task<MLScenario> GetScenario(string scenarioId)
     {
-        return await service.GetMLScenarioAsync(scenarioName)
-            ?? throw new EntryPointNotFoundException($"Scenario not found. {scenarioName}");
+        return await service.GetMLScenarioAsync(scenarioId)
+            ?? throw new EntryPointNotFoundException($"Scenario not found. {scenarioId}");
     }
 
-    [HttpGet("scenarios/{scenarioName}/models")]
-    public async IAsyncEnumerable<MLModel> GetModels(string scenarioName)
+    [HttpGet("scenarios/{scenarioId}/models")]
+    public async IAsyncEnumerable<MLModel> GetModels(string scenarioId)
     {
-        var scenario = await service.GetMLScenarioAsync(scenarioName)
-            ?? throw new EntryPointNotFoundException($"Scenario not found. {scenarioName}");
+        var scenario = await service.GetMLScenarioAsync(scenarioId)
+            ?? throw new EntryPointNotFoundException($"Scenario not found. {scenarioId}");
 
         await foreach (var item in service.GetModelsAsync(scenario))
         {
@@ -43,24 +43,24 @@ public class ApiController : ControllerBase
         }
     }
 
-    [HttpPost("scenarios/{scenarioName}/train")]
-    public async Task<MLTrainActionResult> BuildNewModel(string scenarioName)
+    [HttpPost("scenarios/{scenarioId}/train")]
+    public async Task<MLTrainActionResult> BuildNewModel(string scenarioId)
     {
-        var scenario = await service.GetMLScenarioAsync(scenarioName);
+        var scenario = await service.GetMLScenarioAsync(scenarioId);
         return scenario == null 
-            ? throw new EntryPointNotFoundException($"Scenario not found. {scenarioName}")
+            ? throw new EntryPointNotFoundException($"Scenario not found. {scenarioId}")
             : await service.BuildNewModelAsync(scenario);
     }
 
-    [HttpGet("scenarios/{scenarioName}/models/{modelName}")]
-    public async Task<MLModel?> GetMLModel(string scenarioName, string modelName)
+    [HttpGet("scenarios/{scenarioId}/models/{modelId}")]
+    public async Task<MLModel?> GetMLModel(string scenarioId, string modelId)
     {
-        var scenario = await service.GetMLScenarioAsync(scenarioName)
-            ?? throw new EntryPointNotFoundException($"Scenario not found. {scenarioName}");
+        var scenario = await service.GetMLScenarioAsync(scenarioId)
+            ?? throw new EntryPointNotFoundException($"Scenario not found. {scenarioId}");
 
         try
         {
-            var mlModel = await service.GetMLModelAsync(scenario, modelName);
+            var mlModel = await service.GetMLModelAsync(scenario, modelId);
             return mlModel;
         }
         catch (Exception)
@@ -69,15 +69,15 @@ public class ApiController : ControllerBase
         }
     }
 
-    [HttpGet("scenarios/{scenarioName}/models/{modelName}/log")]
-    public async Task<string> GetMLModelTrainLog(string scenarioName, string modelName)
+    [HttpGet("scenarios/{scenarioId}/models/{modelId}/log")]
+    public async Task<string> GetMLModelTrainLog(string scenarioId, string modelId)
     {
-        var scenario = await service.GetMLScenarioAsync(scenarioName)
-            ?? throw new EntryPointNotFoundException($"Scenario not found. {scenarioName}");
+        var scenario = await service.GetMLScenarioAsync(scenarioId)
+            ?? throw new EntryPointNotFoundException($"Scenario not found. {scenarioId}");
 
         try
         {
-            var logs = await service.GetMLModelLogAsync(scenario, modelName);
+            var logs = await service.GetMLModelLogAsync(scenario, modelId);
             return logs;
         }
         catch (Exception)
@@ -86,14 +86,14 @@ public class ApiController : ControllerBase
         }
     }
 
-    [HttpPost("scenarios/{scenarioName}/data")]
-    public async Task<IActionResult> SubmitData(string scenarioName)
+    [HttpPost("scenarios/{scenarioId}/data")]
+    public async Task<IActionResult> SubmitData(string scenarioId)
     {
         if (Request.ContentType == null)
             throw new InvalidOperationException("Required ContentType");
 
-        var scenario = await service.GetMLScenarioAsync(scenarioName)
-            ?? throw new EntryPointNotFoundException($"Scenario not found. {scenarioName}");
+        var scenario = await service.GetMLScenarioAsync(scenarioId)
+            ?? throw new EntryPointNotFoundException($"Scenario not found. {scenarioId}");
 
         var contentType = Request.ContentType;
 
@@ -119,14 +119,14 @@ public class ApiController : ControllerBase
         }
     }
 
-    [HttpPost("scenarios/{scenarioName}/predict")]
-    public async Task<IActionResult> Predict(string scenarioName)
+    [HttpPost("scenarios/{scenarioId}/predict")]
+    public async Task<IActionResult> Predict(string scenarioId)
     {
         if (Request.ContentType == null)
             throw new InvalidOperationException("Required ContentType");
 
-        var scenario = await service.GetMLScenarioAsync(scenarioName)
-            ?? throw new EntryPointNotFoundException($"Scenario not found. {scenarioName}");
+        var scenario = await service.GetMLScenarioAsync(scenarioId)
+            ?? throw new EntryPointNotFoundException($"Scenario not found. {scenarioId}");
 
         var contentType = Request.ContentType;
 
@@ -152,11 +152,11 @@ public class ApiController : ControllerBase
         }
     }
 
-    [HttpGet("scenarios/{scenarioName}/predict/{inputName}")]
-    public async Task<IActionResult> GetPredictResult(string scenarioName, string inputName)
+    [HttpGet("scenarios/{scenarioId}/predict/{inputName}")]
+    public async Task<IActionResult> GetPredictResult(string scenarioId, string inputName)
     {
-        var scenario = await service.GetMLScenarioAsync(scenarioName)
-            ?? throw new EntryPointNotFoundException($"Scenario not found. {scenarioName}");
+        var scenario = await service.GetMLScenarioAsync(scenarioId)
+            ?? throw new EntryPointNotFoundException($"Scenario not found. {scenarioId}");
 
         var result = await service.GetPredictResultAsync(scenario, inputName);
         return Ok(result);

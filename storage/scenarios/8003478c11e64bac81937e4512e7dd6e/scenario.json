@@ -1,0 +1,16 @@
+{
+  "ScenarioId": "8003478c11e64bac81937e4512e7dd6e",
+  "Name": "My Classification Model",
+  "Tags": [
+    "customer-data",
+    "classification",
+    "prototype"
+  ],
+  "Command": "classification",
+  "Models": [],
+  "CreatedAt": "2024-12-17T01:48:56.5073451Z",
+  "LastTrainDataUpdate": null,
+  "LastTestDataUpdate": null,
+  "TrainDataPath": null,
+  "TestDataPath": null
+}
