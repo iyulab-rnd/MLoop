@@ -1,0 +1,21 @@
+>mlnet-predict
+[ML.NET Prediction Engine]
+MLNetPredict 1.0.9+176237bd7a755c54c994333631b1b6722e0fe57f
+Copyright (c) Iyulab Corporation 2024.
+
+ERROR(S):
+  A required value not bound to option name is missing.
+
+  -o, --output-path      Path to the output directory (optional).
+
+  --has-header           Specify [true|false] depending if dataset file(s) have header row. Use auto-detect if this flag is not set. (optional).
+
+  --separator            Specify the separator character used in the dataset file(s). Use auto-detect if this flag is not set. (optional).
+
+  --help                 Display this help screen.
+
+  --version              Display version information.
+
+  model-path (pos. 0)    Required. Path to the directory containing the .mlnet model file.
+
+  input-path (pos. 1)    Required. Path to the input file.

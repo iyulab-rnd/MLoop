@@ -1,49 +1,147 @@
-@baseUrl = https://localhost:7102
-@scenarioId = f6b5c1bf24f343cf98e8aebc32899a99
-@jobId = 1
+@host = https://localhost:7102
+@scenarioId = 76de3a15eb78480ba0cfe4288079fae0
+@jobId = e62b4cf030b84e928876dd14393388d8
+@modelId = m20241220071928
+@predictionId = cea41430b47f4bbfaf57b14622d1128c
 
-### 시나리오 검색
-GET {{baseUrl}}/scenarios
+# < D:\data\MLoop\files\GitHubIssueClassification\issues_train.tsv
 
-### 1. Create a new scenario for GitHub issue classification
-POST {{baseUrl}}/scenarios
+### 시나리오 조회
+GET {{host}}/scenarios
+
+### Create a new scenario
+POST {{host}}/scenarios
 Content-Type: application/json
 
 {
-    "name": "GitHub Issue Area Classification",
-    "command": "classification",
-    "tags": ["github", "issue", "area"]
+    "name": "GitHub Issue Classification",
+    "mlType": "classification",
+    "tags": ["github", "issues", "area"]
 }
 
-### 2. Upload train data
+### 데이터 조회회
+GET {{host}}/scenarios/{{scenarioId}}/data
 
-POST {{baseUrl}}/scenarios/{{scenarioId}}/data/train
+### Upload training data
+POST {{host}}/scenarios/{{scenarioId}}/data
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
 ------WebKitFormBoundary7MA4YWxkTrZu0gW
 Content-Disposition: form-data; name="file"; filename="issues_train.tsv"
 Content-Type: text/tab-separated-values
 
-< ../files/GitHubIssueClassification/issues_train.tsv
+< D:\data\MLoop\files\GitHubIssueClassification\issues_train.tsv
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
-### 3. Upload test data
-POST {{baseUrl}}/scenarios/{{scenarioId}}/data/Test
-Content-Type: multipart/form-data; boundary=boundary
+### Upload test data
+POST {{host}}/scenarios/{{scenarioId}}/data
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
---boundary
+------WebKitFormBoundary7MA4YWxkTrZu0gW
 Content-Disposition: form-data; name="file"; filename="issues_test.tsv"
 Content-Type: text/tab-separated-values
 
-< ../files/GitHubIssueClassification/issues_test.tsv
---boundary--
+< D:\data\MLoop\files\GitHubIssueClassification\issues_test.tsv
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
-### 4. Start training
-# @name startTrain
-POST {{baseUrl}}/scenarios/{{scenarioId}}/train
+### Update train workflow
+POST {{host}}/scenarios/{{scenarioId}}/workflows/train
+Content-Type: text/yaml
 
-### 5. Check training job status
-GET {{baseUrl}}/jobs/{{jobId}}
+steps:
+  - name: classify_issues
+    type: mlnet-train
+    config:
+      command: classification
+      args:
+        # 필수 설정
+        dataset: issues_train.tsv
+        validation-dataset: issues_test.tsv
+        label-col: Area
+        
+        # 옵션 설정
+        has-header: true
+        allow-quote: true
+        train-time: 600
+        ignore-cols: ID
+        
+### Start training
+POST {{host}}/scenarios/{{scenarioId}}/train
 
-### 6. Get scenario details (to check trained models)
-GET {{baseUrl}}/scenarios/{{scenarioId}}
+### GET Jobs
+GET {{host}}/scenarios/{{scenarioId}}/jobs
+
+### GET Job
+GET {{host}}/scenarios/{{scenarioId}}/jobs/{{jobId}}
+
+### Cancel Job
+POST {{host}}/scenarios/{{scenarioId}}/jobs/{{jobId}}/cancel
+
+### GET Job Logs
+GET {{host}}/scenarios/{{scenarioId}}/jobs/{{jobId}}/logs
+
+### GET Models
+GET {{host}}/scenarios/{{scenarioId}}/models
+
+### GET Model
+GET {{host}}/scenarios/{{scenarioId}}/models/{{modelId}}
+
+### GET Model Train Logs (train.log)
+GET {{host}}/scenarios/{{scenarioId}}/models/{{modelId}}/logs/train
+
+### GET Model Metrics (metrics.json)
+GET {{host}}/scenarios/{{scenarioId}}/models/{{modelId}}/metrics
+
+### GET Best Model
+GET {{host}}/scenarios/{{scenarioId}}/models/best-model
+
+### POST Cleanup Jobs - 완료된 작업을 모두 제거 (.json, .log, _result.json)
+POST {{host}}/scenarios/{{scenarioId}}/jobs/cleanup
+
+### POST Cleanup Models - Best Model 이 아닌 모델을 모두 제거
+POST {{host}}/scenarios/{{scenarioId}}/models/cleanup
+
+### POST Cleanup Predictions - 완료된 예측을 모두 제거
+POST {{host}}/scenarios/{{scenarioId}}/predictions/cleanup
+
+### POST Predict - Best Model 에 의한 예측 실행
+POST {{host}}/scenarios/{{scenarioId}}/predict
+Content-Type: text/tab-separated-values
+
+Area	Title	Description
+Python Programming	How to Handle Large JSON Files Efficiently in Python?	I'm working on a Python project to process large JSON files (several GB). Loading the entire file into memory with json.load() causes crashes. I need an efficient way to extract specific keys and values without loading the full file. How can I handle large JSON files line by line or in chunks?
+
+#### Response
+{
+    "predictionId": "<predictionId>"
+}
+
+### GET Prediction Result (result.csv)
+GET {{host}}/scenarios/{{scenarioId}}/predictions/{{predictionId}}
+
+#### 200: OK - 예측 실행중...
+# HTTP/1.1 200 OK
+# Connection: close
+# Content-Type: application/json; charset=utf-8
+# Date: Sat, 21 Dec 2024 08:17:36 GMT
+# Server: Kestrel
+# Transfer-Encoding: chunked
+
+# {
+#   "status": "processing",
+#   "jobStatus": "Waiting",
+#   "message": "Processing prediction...",
+#   "modelId": "m20241220071928"
+# }
+
+#### 200: OK - 예측 완료
+# HTTP/1.1 200 OK
+# Content-Length: 125
+# Connection: close
+# Content-Type: text/csv
+# Date: Sat, 21 Dec 2024 08:16:27 GMT
+# Server: Kestrel
+# Content-Disposition: attachment; filename=result_37e30742fae749ca8031caa31cc1916c.csv; filename*=UTF-8''result_37e30742fae749ca8031caa31cc1916c.csv
+
+# Top1,Top1Score,Top2,Top2Score,Top3,Top3Score
+# area-System.IO,0.471420,area-System.Net,0.092583,area-Infrastructure,0.088676

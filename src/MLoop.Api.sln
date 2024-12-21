@@ -1,0 +1,52 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MLoop.Api", "MLoop.Api\MLoop.Api.csproj", "{E4CDEA96-DC22-427D-A112-0FF795E87146}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MLoop", "MLoop\MLoop.csproj", "{BD282758-04A8-434B-B650-30468D8A38AA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{CF1D4823-41BE-4D8A-8E64-510D22118C2D}"
+	ProjectSection(SolutionItems) = preProject
+		..\DEV.md = ..\DEV.md
+		..\ML_OPTIONS.txt = ..\ML_OPTIONS.txt
+		..\README.md = ..\README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "90. Tests", "90. Tests", "{DB5D5212-FB8D-49C6-8131-A983B1EA6C6D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "10. Shared", "10. Shared", "{10DB39BA-7B70-4FEC-971E-248CA4F8A7A5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "30. Server", "30. Server", "{8BB204F5-55EA-42F9-8690-7EA1EF4B839D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MLoop.Tests", "MLoop.Tests\MLoop.Tests.csproj", "{A264A82B-94FA-4662-AB6E-928339266428}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E4CDEA96-DC22-427D-A112-0FF795E87146}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E4CDEA96-DC22-427D-A112-0FF795E87146}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E4CDEA96-DC22-427D-A112-0FF795E87146}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E4CDEA96-DC22-427D-A112-0FF795E87146}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BD282758-04A8-434B-B650-30468D8A38AA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BD282758-04A8-434B-B650-30468D8A38AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BD282758-04A8-434B-B650-30468D8A38AA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BD282758-04A8-434B-B650-30468D8A38AA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A264A82B-94FA-4662-AB6E-928339266428}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A264A82B-94FA-4662-AB6E-928339266428}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A264A82B-94FA-4662-AB6E-928339266428}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A264A82B-94FA-4662-AB6E-928339266428}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{E4CDEA96-DC22-427D-A112-0FF795E87146} = {8BB204F5-55EA-42F9-8690-7EA1EF4B839D}
+		{BD282758-04A8-434B-B650-30468D8A38AA} = {10DB39BA-7B70-4FEC-971E-248CA4F8A7A5}
+		{A264A82B-94FA-4662-AB6E-928339266428} = {DB5D5212-FB8D-49C6-8131-A983B1EA6C6D}
+	EndGlobalSection
+EndGlobal
