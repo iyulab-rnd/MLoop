@@ -9,12 +9,15 @@ using Microsoft.AspNetCore.Diagnostics;
 using MLoop;
 using MLoop.Api.InputFormatters;
 
-var builder = WebApplication.CreateBuilder(args);
-
-// WebRootPath 환경변수 적용
-var webRootPath = Environment.GetEnvironmentVariable("WebRootPath");
-if (!string.IsNullOrEmpty(webRootPath))
-    builder.WebHost.UseWebRoot(webRootPath);
+var options = new WebApplicationOptions()
+{
+#if DEBUG
+    WebRootPath = "wwwroot"
+#else
+    WebRootPath = "/var/data/wwwroot"
+#endif
+};
+var builder = WebApplication.CreateBuilder(options);
 
 // Add services to the container.
 builder.Configuration.AddEnvironmentVariables();

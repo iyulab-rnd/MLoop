@@ -1,0 +1,73 @@
+name: mloop-api
+
+on:
+  push:
+    tags:
+      - 'api_v[0-9]+.[0-9]+.[0-9]+'    
+  workflow_dispatch:      
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mloop/src/MLoop.Api
+       
+    steps:
+      - name: Checkout MLoop
+        uses: actions/checkout@v3
+        with:
+          path: mloop
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: 9.0.x
+          
+      - name: Restore dependencies
+        run: dotnet restore
+        
+      - name: Build
+        run: dotnet build --no-restore -c Release
+        
+      - name: Test
+        run: dotnet test --no-build --verbosity normal
+        
+      - name: Publish
+        run: dotnet publish -c Release -o ./publish
+
+      - name: Log in to container registry
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+          
+      - name: Retrieve the latest Git tag
+        id: get-latest-tag
+        run: echo "LATEST_TAG=$(git describe --tags)" >> $GITHUB_ENV
+
+      - name: Build and push container image to registry
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: ${{ secrets.REGISTRY_LOGIN_SERVER }}/mloop-api:${{ env.LATEST_TAG }}
+          file: mloop/src/MLoop.Api/Dockerfile
+          context: mloop/src/MLoop.Api/
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to containerapp
+        uses: azure/CLI@v1
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az config set extension.use_dynamic_install=yes_without_prompt
+            az containerapp registry set -n mloop-api -g mloop --server ${{ secrets.REGISTRY_LOGIN_SERVER }} --username ${{ secrets.REGISTRY_USERNAME }} --password ${{ secrets.REGISTRY_PASSWORD }}
+            az containerapp update -n mloop-api -g mloop --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/mloop-api:${{ env.LATEST_TAG }}
