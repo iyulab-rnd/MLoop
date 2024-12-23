@@ -28,6 +28,18 @@ GET {{host}}/scenarios
 #   }
 # ]
 
+###  시나리오 조회 (Name)
+GET {{host}}/scenarios?$filter=contains(name,'GitHub') and mlType eq 'classification'
+
+### 시나리오 조회 (ML Type)
+GET {{host}}/scenarios?$filter=mlType eq 'classification'
+
+### 시나리오 조회 (최신순)
+GET {{host}}/scenarios?$orderby=createdAt desc
+
+### 시나리오 조회 (Tags)
+GET {{host}}/scenarios?$filter=tags/any(t: t eq 'github')
+
 ### Create a new scenario
 POST {{host}}/scenarios
 Content-Type: application/json

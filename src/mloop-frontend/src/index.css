@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --sl-color-primary-600: #646cff;
+  --app-sidebar-width: 250px;
+}
+
+sl-card::part(base) {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+sl-card::part(body) {
+  display: flex !important;
+  flex-grow: 1 !important;
+  align-items: center !important;
+  align-self: center !important;
+}
