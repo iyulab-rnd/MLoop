@@ -12,26 +12,40 @@ export const ScenarioCard = ({ scenario, onClick }: ScenarioCardProps) => {
       onClick={() => onClick?.(scenario)}
       className="cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 bg-white border border-gray-200 flex-grow h-full"
     >
-      <div className="flex flex-col h-full p-4">
+      <div className="flex flex-col h-full p-6">
+        {/* ML Type Badge - Moved to top for emphasis */}
+        <div className="mb-3">
+          <span className="px-3 py-1 text-sm font-medium rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
+            {scenario.mlType}
+          </span>
+        </div>
+
         <div className="flex-grow">
-          <h3 className="text-xl font-semibold mb-2 text-gray-800 line-clamp-1">
+          {/* Title */}
+          <h3 className="text-lg font-semibold mb-3 text-gray-900 line-clamp-2">
             {scenario.name}
           </h3>
-          <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-            A machine learning scenario of type {scenario.mlType}
+
+          {/* Description */}
+          <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+            {scenario.description || `A machine learning scenario focused on ${scenario.mlType}`}
           </p>
-          <div className="flex flex-wrap gap-2 mb-2 max-h-[80px] overflow-y-auto">
+
+          {/* Tags */}
+          <div className="flex flex-wrap gap-2 mb-4 max-h-[80px] overflow-y-auto">
             {scenario.tags.map((tag: string) => (
               <span
                 key={tag}
-                className="px-3 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-600 border border-blue-100"
+                className="px-2.5 py-1 text-xs font-medium rounded-full bg-gray-50 text-gray-600 border border-gray-100"
               >
                 {tag}
               </span>
             ))}
           </div>
         </div>
-        <div className="text-xs text-gray-500 flex items-center gap-2 mt-auto">
+
+        {/* Created Date - Bottom */}
+        <div className="text-xs text-gray-500 flex items-center gap-2 mt-auto pt-2 border-t border-gray-100">
           <svg
             className="w-4 h-4"
             fill="none"

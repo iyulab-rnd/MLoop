@@ -21,8 +21,62 @@ public class WorkflowController : ControllerBase
         _logger = logger;
     }
 
+    [HttpGet("train")]
+    public async Task<IActionResult> GetTrainWorkflow(string scenarioId)
+    {
+        return await GetWorkflow(scenarioId, "train");
+    }
+
+    [HttpGet("predict")]
+    public async Task<IActionResult> GetPredictWorkflow(string scenarioId)
+    {
+        return await GetWorkflow(scenarioId, "predict");
+    }
+
     [HttpPost("train")]
     public async Task<IActionResult> UpdateTrainWorkflow(string scenarioId, [FromBody] string yamlContent)
+    {
+        return await UpdateWorkflow(scenarioId, yamlContent, "train");
+    }
+
+    [HttpPost("predict")]
+    public async Task<IActionResult> UpdatePredictWorkflow(string scenarioId, [FromBody] string yamlContent)
+    {
+        return await UpdateWorkflow(scenarioId, yamlContent, "predict");
+    }
+
+    private async Task<IActionResult> GetWorkflow(string scenarioId, string workflowType)
+    {
+        try
+        {
+            var workflowPath = GetWorkflowPath(scenarioId, workflowType);
+
+            if (!System.IO.File.Exists(workflowPath))
+            {
+                return NotFound($"{workflowType} workflow not found for scenario {scenarioId}");
+            }
+
+            var yamlContent = await System.IO.File.ReadAllTextAsync(workflowPath);
+
+            // Validate the existing YAML to ensure it's still valid
+            if (!ValidateWorkflow(yamlContent, out var error))
+            {
+                _logger.LogWarning("Invalid {WorkflowType} workflow found for scenario {ScenarioId}: {Error}",
+                    workflowType, scenarioId, error);
+                return StatusCode(500, $"Stored workflow is invalid: {error}");
+            }
+
+            return Ok(yamlContent);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving {WorkflowType} workflow for scenario {ScenarioId}",
+                workflowType, scenarioId);
+            return StatusCode(500, $"Error retrieving {workflowType} workflow");
+        }
+    }
+
+    private async Task<IActionResult> UpdateWorkflow(string scenarioId, string yamlContent, string workflowType)
     {
         try
         {
@@ -37,23 +91,36 @@ public class WorkflowController : ControllerBase
                 return BadRequest(error);
             }
 
-            // Create workflows directory
-            var scenarioBaseDir = _storage.GetScenarioBaseDir(scenarioId);
-            var workflowsDir = Path.Combine(scenarioBaseDir, "workflows");
-            Directory.CreateDirectory(workflowsDir);
+            var workflowPath = GetWorkflowPath(scenarioId, workflowType);
+            EnsureWorkflowDirectoryExists(scenarioId);
 
-            // Save original content directly
-            var trainWorkflowPath = Path.Combine(workflowsDir, "train.yaml");
-            await System.IO.File.WriteAllTextAsync(trainWorkflowPath, yamlContent);
+            // Save content
+            await System.IO.File.WriteAllTextAsync(workflowPath, yamlContent);
 
-            _logger.LogInformation("Updated train workflow for scenario {ScenarioId}", scenarioId);
-            return Ok(new { message = "Train workflow updated successfully" });
+            _logger.LogInformation("Updated {WorkflowType} workflow for scenario {ScenarioId}",
+                workflowType, scenarioId);
+            return Ok(new { message = $"{workflowType} workflow updated successfully" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating train workflow for scenario {ScenarioId}", scenarioId);
-            return StatusCode(500, "Error updating workflow");
+            _logger.LogError(ex, "Error updating {WorkflowType} workflow for scenario {ScenarioId}",
+                workflowType, scenarioId);
+            return StatusCode(500, $"Error updating {workflowType} workflow");
         }
+    }
+
+    private string GetWorkflowPath(string scenarioId, string workflowType)
+    {
+        var scenarioBaseDir = _storage.GetScenarioBaseDir(scenarioId);
+        var workflowsDir = Path.Combine(scenarioBaseDir, "workflows");
+        return Path.Combine(workflowsDir, $"{workflowType}.yaml");
+    }
+
+    private void EnsureWorkflowDirectoryExists(string scenarioId)
+    {
+        var scenarioBaseDir = _storage.GetScenarioBaseDir(scenarioId);
+        var workflowsDir = Path.Combine(scenarioBaseDir, "workflows");
+        Directory.CreateDirectory(workflowsDir);
     }
 
     private static bool ValidateWorkflow(string yamlContent, out string? error)
@@ -63,7 +130,6 @@ public class WorkflowController : ControllerBase
             var deserializer = new DeserializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();
-
             var workflow = deserializer.Deserialize<WorkflowConfig>(yamlContent);
 
             if (workflow?.Steps == null || !workflow.Steps.Any())

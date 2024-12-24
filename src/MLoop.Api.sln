@@ -10,7 +10,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{CF1D4823-41BE-4D8A-8E64-510D22118C2D}"
 	ProjectSection(SolutionItems) = preProject
 		..\DEV.md = ..\DEV.md
-		..\ML_OPTIONS.txt = ..\ML_OPTIONS.txt
+		..\FE.md = ..\FE.md
+		..\MLNET_CLI.txt = ..\MLNET_CLI.txt
 		..\README.md = ..\README.md
 	EndProjectSection
 EndProject

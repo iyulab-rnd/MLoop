@@ -102,6 +102,12 @@ export const ScenarioLayout = () => {
                     })}
                   </span>
                 </div>
+                {/* Added ML Type */}
+                <div className="mb-3">
+                  <span className="px-3 py-1.5 text-sm font-medium rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    {scenario.mlType}
+                  </span>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {scenario.tags.map(tag => (
                     <SlTag key={tag} variant="neutral">{tag}</SlTag>
