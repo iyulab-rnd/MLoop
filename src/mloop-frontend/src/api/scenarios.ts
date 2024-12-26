@@ -3,7 +3,6 @@ import { api } from "./api";
 
 type EmptyRequest = Record<string, never>;
 
-
 export const scenarioApi = {
   // 시나리오 목록 조회
   list: async (params?: ScenarioSearchParams): Promise<Scenario[]> => {
@@ -30,6 +29,11 @@ export const scenarioApi = {
   // 시나리오 수정
   update: async (id: string, data: Partial<Scenario>): Promise<Scenario> => {
     return api.put<Scenario, Partial<Scenario>>(`/api/scenarios/${id}`, data);
+  },
+
+  // 시나리오 삭제
+  delete: async (id: string): Promise<void> => {
+    return api.delete<void>(`/api/scenarios/${id}`);
   },
 
   // 모델 트레이닝 시작

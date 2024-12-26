@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { SlButton, SlDialog, SlIcon } from '@shoelace-style/shoelace/dist/react';
 import { ScenarioForm, ScenarioFormData } from '../components/scenarios/ScenarioForm';
 import { scenarioApi } from '../api/scenarios';
 import { useNotification } from "../hooks/useNotification";
@@ -15,6 +16,8 @@ export const EditScenarioPage = () => {
     tags: []
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -91,6 +94,23 @@ export const EditScenarioPage = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!scenarioId) return;
+
+    setIsDeleting(true);
+    try {
+      await scenarioApi.delete(scenarioId);
+      showNotification('success', 'Scenario deleted successfully');
+      navigate('/scenarios');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete scenario';
+      showNotification('danger', errorMessage);
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -101,17 +121,23 @@ export const EditScenarioPage = () => {
 
   return (
     <div className="max-w-[800px] mx-auto px-8 py-12">
-      <div className="mb-8 flex items-center">
-        <button 
-          type="button"
-          onClick={() => navigate(`/scenarios/${scenarioId}`)}
-          className="mr-4 text-gray-600 hover:text-gray-900"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-        </button>
-        <h1 className="text-3xl font-bold text-gray-900">Edit Scenario</h1>
+      <div className="mb-8 flex items-center justify-between">
+        <div className="flex items-center">
+          <button 
+            type="button"
+            onClick={() => navigate(`/scenarios/${scenarioId}`)}
+            className="mr-4 text-gray-600 hover:text-gray-900"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+          </button>
+          <h1 className="text-3xl font-bold text-gray-900">Edit Scenario</h1>
+        </div>
+        <SlButton variant="danger" onClick={() => setShowDeleteDialog(true)}>
+          <SlIcon slot="prefix" name="trash" />
+          Delete Scenario
+        </SlButton>
       </div>
 
       <ScenarioForm
@@ -123,6 +149,33 @@ export const EditScenarioPage = () => {
         onCancel={() => navigate(`/scenarios/${scenarioId}`)}
         submitLabel="Save Changes"
       />
+
+      <SlDialog 
+        label="Confirm Delete"
+        open={showDeleteDialog}
+        onSlAfterHide={() => setShowDeleteDialog(false)}
+      >
+        <div className="p-4">
+          <p className="text-gray-700 mb-4">
+            Are you sure you want to delete this scenario? This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-2">
+            <SlButton 
+              variant="default" 
+              onClick={() => setShowDeleteDialog(false)}
+            >
+              Cancel
+            </SlButton>
+            <SlButton 
+              variant="danger" 
+              loading={isDeleting}
+              onClick={handleDelete}
+            >
+              Delete
+            </SlButton>
+          </div>
+        </div>
+      </SlDialog>
     </div>
   );
 };
