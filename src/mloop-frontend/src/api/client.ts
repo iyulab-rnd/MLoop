@@ -1,12 +1,12 @@
 export class ApiError extends Error {
   public status: number;
-  public data: any;
+  public data: unknown;
 
-  constructor(message: string, status: number, data: any) {
+  constructor(message: string, status: number, data: unknown) {
     super(message);
     this.status = status;
     this.data = data;
-    Object.setPrototypeOf(this, ApiError.prototype); // TypeScript에서 Error 클래스를 올바르게 확장하기 위해 필요
+    Object.setPrototypeOf(this, ApiError.prototype);
   }
 }
 
@@ -29,28 +29,20 @@ export async function apiRequest<T>(url: string, options?: RequestInit): Promise
 async function handleResponse<T>(response: Response, parseResponse: boolean = true): Promise<T> {
   if (!response.ok) {
     let errorMessage = `HTTP error! status: ${response.status}`;
-    let errorData: any = null;
+    let errorData: unknown = null;  // any를 unknown으로 변경
 
     try {
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
-        // JSON 형식의 에러 응답 처리
         errorData = await response.json();
-        errorMessage = errorData.message || errorMessage;
-      } else if (contentType && contentType.includes("text/plain")) {
-        // 텍스트 형식의 에러 응답 처리
-        errorData = await response.text();
-        errorMessage = errorData || errorMessage;
+        errorMessage = (errorData as { message?: string })?.message || errorMessage;
       } else {
-        // 기타 형식의 에러 응답 처리
         errorData = await response.text();
-        errorMessage = errorData || errorMessage;
       }
     } catch (e) {
       console.error("Error parsing error response:", e);
     }
 
-    console.error(`API Error: ${errorMessage}`, errorData);
     throw new ApiError(errorMessage, response.status, errorData);
   }
 

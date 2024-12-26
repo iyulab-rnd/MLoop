@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { SlButton, SlIcon } from "@shoelace-style/shoelace/dist/react";
 import { Scenario } from "../types/Scenario";
-import { Model } from "../types/Model"; // Import the Model interface
+import { Model } from "../types/Model";
 import { scenarioApi } from "../api/scenarios";
-import { useNotification } from "../contexts/NotificationContext";
+import { useNotification } from "../hooks/useNotification";
 import { ApiError } from "../api/client";
 
 type ScenarioContextType = {
@@ -20,14 +20,10 @@ export const MLModelListPage = () => {
   const [cleanupInProgress, setCleanupInProgress] = useState(false);
   const [trainingInProgress, setTrainingInProgress] = useState(false);
 
-  useEffect(() => {
-    fetchModels();
-  }, [scenario.scenarioId]);
-
-  const fetchModels = async () => {
+  const fetchModels = useCallback(async () => {
     try {
       setLoading(true);
-      const data: Model[] = await scenarioApi.listModels(scenario.scenarioId); // Explicitly type as Model[]
+      const data: Model[] = await scenarioApi.listModels(scenario.scenarioId);
       setModels(data);
     } catch (error) {
       showNotification(
@@ -37,7 +33,11 @@ export const MLModelListPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [scenario.scenarioId, showNotification]);
+  
+  useEffect(() => {
+    fetchModels();
+  }, [fetchModels]);
 
   const handleStartTraining = async () => {
     try {

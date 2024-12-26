@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
-import { SlButton, SlIcon } from '@shoelace-style/shoelace/dist/react';
-import { Scenario } from '../types/Scenario';
-import { DataFile } from '../types/DataFile';
-import { scenarioApi } from '../api/scenarios';
-import { useNotification } from '../contexts/NotificationContext';
+import React, { useState, useEffect, useCallback } from "react";
+import { useOutletContext } from "react-router-dom";
+import { SlButton, SlIcon } from "@shoelace-style/shoelace/dist/react";
+import { Scenario } from "../types/Scenario";
+import { DataFile } from "../types/DataFile";
+import { scenarioApi } from "../api/scenarios";
+import { useNotification } from "../hooks/useNotification"
 
 type ScenarioContextType = {
   scenario: Scenario;
@@ -17,71 +17,90 @@ export const DataPage = () => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
-  useEffect(() => {
-    fetchFiles();
-  }, [scenario.scenarioId]);
-
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     try {
       setLoading(true);
       const data = await scenarioApi.listFiles(scenario.scenarioId);
       setFiles(data);
     } catch (error) {
-      showNotification('danger', error instanceof Error ? error.message : 'Failed to fetch files');
+      showNotification(
+        "danger",
+        error instanceof Error ? error.message : "Failed to fetch files"
+      );
     } finally {
       setLoading(false);
     }
-  };
+  }, [scenario.scenarioId, showNotification]);
 
-  const handleFilesUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    fetchFiles();
+  }, [fetchFiles]);
+
+  const handleFilesUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const selectedFiles = event.target.files;
     if (!selectedFiles || selectedFiles.length === 0) return;
-  
+
     // 파일 크기 제한
     const MAX_SIZE = 200 * 1024 * 1024; // 200MB
-    for (let file of selectedFiles) {
+    for (const file of selectedFiles) {
       if (file.size > MAX_SIZE) {
-        showNotification('danger', `File ${file.name} exceeds the maximum size of 10MB`);
+        showNotification(
+          "danger",
+          `File ${file.name} exceeds the maximum size of 10MB`
+        );
         return;
       }
     }
-  
+
     setUploading(true);
-    
+
     try {
-      await scenarioApi.uploadFiles(scenario.scenarioId, Array.from(selectedFiles));
+      await scenarioApi.uploadFiles(
+        scenario.scenarioId,
+        Array.from(selectedFiles)
+      );
       await fetchFiles();
-      showNotification('success', `${selectedFiles.length} file(s) uploaded successfully`);
+      showNotification(
+        "success",
+        `${selectedFiles.length} file(s) uploaded successfully`
+      );
     } catch (error) {
-      showNotification('danger', error instanceof Error ? error.message : 'Failed to upload files');
+      showNotification(
+        "danger",
+        error instanceof Error ? error.message : "Failed to upload files"
+      );
     } finally {
       setUploading(false);
       // 동일한 파일을 다시 업로드할 수 있도록 입력 값을 초기화합니다.
-      event.target.value = '';
+      event.target.value = "";
     }
   };
-  
 
   const handleDelete = async (fileName: string) => {
     try {
       await scenarioApi.deleteFile(scenario.scenarioId, fileName);
       await fetchFiles();
-      showNotification('success', 'File deleted successfully');
+      showNotification("success", "File deleted successfully");
     } catch (error) {
-      showNotification('danger', error instanceof Error ? error.message : 'Failed to delete file');
+      showNotification(
+        "danger",
+        error instanceof Error ? error.message : "Failed to delete file"
+      );
     }
   };
 
   const formatFileSize = (bytes: number) => {
-    const units = ['B', 'KB', 'MB', 'GB'];
+    const units = ["B", "KB", "MB", "GB"];
     let size = bytes;
     let unitIndex = 0;
-    
+
     while (size >= 1024 && unitIndex < units.length - 1) {
       size /= 1024;
       unitIndex++;
     }
-    
+
     return `${size.toFixed(1)} ${units[unitIndex]}`;
   };
 
@@ -109,7 +128,7 @@ export const DataPage = () => {
           />
           <SlButton
             variant="primary"
-            onClick={() => document.getElementById('fileUpload')?.click()}
+            onClick={() => document.getElementById("fileUpload")?.click()}
             loading={uploading}
           >
             <SlIcon slot="prefix" name="upload" />
@@ -121,7 +140,9 @@ export const DataPage = () => {
       {files.length === 0 ? (
         <div className="bg-gray-50 rounded-lg p-8 text-center text-gray-500">
           <p>No datasets available for {scenario.name} yet.</p>
-          <p className="mt-2">Click the button above to upload your first dataset.</p>
+          <p className="mt-2">
+            Click the button above to upload your first dataset.
+          </p>
         </div>
       ) : (
         <div className="bg-white rounded-lg border border-gray-200">

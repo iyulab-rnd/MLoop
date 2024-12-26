@@ -3,17 +3,16 @@ import { useParams } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import { SlButton, SlIcon } from '@shoelace-style/shoelace/dist/react';
 import { scenarioApi } from '../api/scenarios';
-import { useNotification } from '../contexts/NotificationContext';
+import { useNotification } from "../hooks/useNotification";
 
 const defaultInput = ``;
 
 export const PredictPage = () => {
-  const { scenarioId, modelId } = useParams();
+  const { scenarioId } = useParams();
   const { showNotification } = useNotification();
   const [input, setInput] = useState(defaultInput);
   const [predicting, setPredicting] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [predictionId, setPredictionId] = useState<string | null>(null);
+  const [result, setResult] = useState<Record<string, string | number> | null>(null);
   const [pollingInterval, setPollingInterval] = useState<number | null>(null);
 
   useEffect(() => {
@@ -40,6 +39,7 @@ export const PredictPage = () => {
         setPredicting(false);
         setResult(response);
       } catch (error) {
+        console.error(error);
         clearInterval(interval);
         setPollingInterval(null);
         setPredicting(false);
@@ -55,13 +55,12 @@ export const PredictPage = () => {
       setPredicting(true);
       setResult(null);
       
-      const { predictionId } = await scenarioApi.predict(scenarioId!, input);
-      setPredictionId(predictionId);
-      startPolling(predictionId);
+      const response = await scenarioApi.predict(scenarioId!, input);
+      startPolling(response.predictionId);
       
-    } catch (error) {
+    } catch (err) {
       setPredicting(false);
-      showNotification('danger', error instanceof Error ? error.message : 'Prediction failed');
+      showNotification('danger', err instanceof Error ? err.message : 'Prediction failed');
     }
   };
 
@@ -115,21 +114,25 @@ export const PredictPage = () => {
             ) : result ? (
               <div>
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-medium text-sm text-gray-500 mb-2">Top 1</h3>
-                    <p className="font-medium">{result.Top1}</p>
-                    <p className="text-sm text-gray-600">{(result.Top1Score * 100).toFixed(2)}%</p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-medium text-sm text-gray-500 mb-2">Top 2</h3>
-                    <p className="font-medium">{result.Top2}</p>
-                    <p className="text-sm text-gray-600">{(result.Top2Score * 100).toFixed(2)}%</p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-medium text-sm text-gray-500 mb-2">Top 3</h3>
-                    <p className="font-medium">{result.Top3}</p>
-                    <p className="text-sm text-gray-600">{(result.Top3Score * 100).toFixed(2)}%</p>
-                  </div>
+                  {Object.entries(result)
+                    .filter(([key]) => !key.includes('status'))
+                    .reduce((acc: [string, string | number][], [, value], index) => {
+                      if (index % 2 === 0) {
+                        // label entry
+                        const nextValue = Object.entries(result)[index + 1]?.[1];
+                        if (nextValue !== undefined) {
+                          acc.push([value.toString(), nextValue as number]);
+                        }
+                      }
+                      return acc;
+                    }, [])
+                    .map(([label, score], index) => (
+                      <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                        <h3 className="font-medium text-sm text-gray-500 mb-2">Top {index + 1}</h3>
+                        <p className="font-medium">{label}</p>
+                        <p className="text-sm text-gray-600">{(Number(score) * 100).toFixed(2)}%</p>
+                      </div>
+                    ))}
                 </div>
               </div>
             ) : (

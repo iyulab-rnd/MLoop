@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import '@shoelace-style/shoelace/dist/themes/light.css';
 import { setBasePath } from '@shoelace-style/shoelace';
-import { NotificationProvider } from './contexts/NotificationContext';
+import { NotificationProvider } from './contexts/NotificationProvider'
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ScenarioListPage } from './pages/ScenarioListPage';
 import { NewScenarioPage } from './pages/NewScenarioPage';

@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation, Link, Routes, Route } from 'react-
 import { SlButton, SlIcon, SlTag, SlAlert } from '@shoelace-style/shoelace/dist/react';
 import { Scenario } from '../types/Scenario';
 import { scenarioApi } from '../api/scenarios';
-import { useNotification } from '../contexts/NotificationContext';
+import { useNotification } from "../hooks/useNotification";
 import { DataPage } from './DataPage';
 import { JobListPage } from './JobListPage';
 import { ScenarioWorkflowsPage } from './ScenarioWorkflowsPage';
@@ -59,9 +59,9 @@ export const ScenarioDetailPage = () => {
         setLoading(false);
       }
     };
-
+  
     fetchScenario();
-  }, [scenarioId, scenarioApi, showNotification]);
+  }, [scenarioId, showNotification]);
 
   if (loading) {
     return (

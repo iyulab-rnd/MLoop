@@ -1,6 +1,9 @@
 import { DataFile, Scenario, ScenarioSearchParams, Job, Model } from "../types";
 import { api } from "./api";
 
+type EmptyRequest = Record<string, never>;
+
+
 export const scenarioApi = {
   // 시나리오 목록 조회
   list: async (params?: ScenarioSearchParams): Promise<Scenario[]> => {
@@ -31,7 +34,7 @@ export const scenarioApi = {
 
   // 모델 트레이닝 시작
   startTraining: async (scenarioId: string): Promise<{ jobId: string }> => {
-    return api.post<{ jobId: string }, {}>(
+    return api.post<{ jobId: string }, EmptyRequest>(
       `/api/scenarios/${scenarioId}/train`,
       {}
     );
@@ -76,7 +79,7 @@ export const scenarioApi = {
 
   // 모델 클린업
   cleanupModels: async (scenarioId: string): Promise<{ message?: string }> => {
-    return api.post<{ message?: string }, {}>(
+    return api.post<{ message?: string }, EmptyRequest>(
       `/api/scenarios/${scenarioId}/models/cleanup`,
       {}
     );
@@ -99,7 +102,7 @@ export const scenarioApi = {
 
   // 작업 취소
   cancelJob: async (scenarioId: string, jobId: string): Promise<void> => {
-    return api.post<void, {}>(
+    return api.post<void, EmptyRequest>(
       `/api/scenarios/${scenarioId}/jobs/${jobId}/cancel`,
       {}
     );
@@ -107,7 +110,7 @@ export const scenarioApi = {
 
   // 작업 클린업
   cleanupJobs: async (scenarioId: string): Promise<{ message?: string }> => {
-    return api.post<{ message?: string }, {}>(
+    return api.post<{ message?: string }, EmptyRequest>(
       `/api/scenarios/${scenarioId}/jobs/cleanup`,
       {}
     );
@@ -165,8 +168,8 @@ export const scenarioApi = {
   getPredictionResult: async (
     scenarioId: string,
     predictionId: string
-  ): Promise<any> => {
-    return api.get<any>(
+  ): Promise<Record<string, string | number>> => {
+    return api.get<Record<string, string | number>>(
       `/api/scenarios/${scenarioId}/predictions/${predictionId}`
     );
   },

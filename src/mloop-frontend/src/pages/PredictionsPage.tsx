@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { SlButton, SlIcon } from "@shoelace-style/shoelace/dist/react";
 import { Scenario } from "../types/Scenario";
 import { Prediction } from "../types/Prediction";
 import { predictionsApi } from "../api/predictions";
-import { useNotification } from "../contexts/NotificationContext";
+import { useNotification } from "../hooks/useNotification";
 
 type ScenarioContextType = {
   scenario: Scenario;
@@ -18,15 +18,10 @@ export const PredictionsPage = () => {
   const [loading, setLoading] = useState(true);
   const [cleanupInProgress, setCleanupInProgress] = useState(false);
 
-  useEffect(() => {
-    fetchPredictions();
-  }, [scenario.scenarioId]);
-
-  const fetchPredictions = async () => {
+  const fetchPredictions = useCallback(async () => {
     try {
       setLoading(true);
       const data = await predictionsApi.list(scenario.scenarioId);
-      // 생성 날짜 기준 내림차순으로 정렬
       const sortedPredictions = data.sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
@@ -39,8 +34,12 @@ export const PredictionsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [scenario.scenarioId, showNotification]);
 
+  useEffect(() => {
+    fetchPredictions();
+  }, [fetchPredictions]);
+  
   const handleCleanup = async () => {
     try {
       setCleanupInProgress(true);

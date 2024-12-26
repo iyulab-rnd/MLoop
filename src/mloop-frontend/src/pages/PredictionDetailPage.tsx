@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { SlButton, SlIcon } from "@shoelace-style/shoelace/dist/react";
 import { predictionsApi } from "../api/predictions";
-import { useNotification } from "../contexts/NotificationContext";
+import { useNotification } from "../hooks/useNotification";
 import { PredictionFile } from "../types/Prediction";
 import FileViewer from "../components/FileViewer";
 
@@ -17,13 +17,9 @@ export const PredictionDetailPage = () => {
     name: string;
   } | null>(null);
 
-  useEffect(() => {
-    fetchFiles();
-  }, [scenarioId, predictionId]);
-
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     if (!scenarioId || !predictionId) return;
-
+  
     try {
       setLoading(true);
       const data = await predictionsApi.listFiles(scenarioId, predictionId);
@@ -37,7 +33,11 @@ export const PredictionDetailPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [scenarioId, predictionId, showNotification]);
+  
+  useEffect(() => {
+    fetchFiles();
+  }, [fetchFiles]);
 
   const formatFileSize = (bytes: number) => {
     const units = ['B', 'KB', 'MB', 'GB'];

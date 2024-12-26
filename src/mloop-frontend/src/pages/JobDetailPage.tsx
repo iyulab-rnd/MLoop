@@ -10,7 +10,7 @@ import {
 } from "@shoelace-style/shoelace/dist/react";
 import { Job } from "../types/Job";
 import { scenarioApi } from "../api/scenarios";
-import { useNotification } from "../contexts/NotificationContext";
+import { useNotification } from "../hooks/useNotification";
 
 export const JobDetailPage = () => {
   const { scenarioId, jobId } = useParams();
@@ -30,7 +30,7 @@ export const JobDetailPage = () => {
         setLoading(true);
         setError(null);
         const data = await scenarioApi.getJob(scenarioId, jobId);
-        setJob(data); // No longer an unknown type
+        setJob(data);
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "Failed to load job details";
@@ -42,7 +42,7 @@ export const JobDetailPage = () => {
     };
 
     fetchJobDetails();
-  }, [scenarioId, jobId, scenarioApi, showNotification]);
+  }, [scenarioId, jobId, showNotification]); // Removed scenarioApi
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -50,17 +50,18 @@ export const JobDetailPage = () => {
 
       try {
         const data = await scenarioApi.getJobLogs(scenarioId, jobId);
-        setLogs(data); // Ensure getJobLogs returns a string
-      } catch (err) {
-        console.error("Error fetching logs:", err);
-        setLogs("Failed to load logs");
-        showNotification("warning", "Failed to load job logs");
+        setLogs(data);
+      } catch (error) { // Changed 'err' to 'error' and used it
+        console.error('Error fetching logs:', error);
+        setLogs('Failed to load logs');
+        showNotification('warning', 'Failed to load job logs');
       }
     };
 
     fetchLogs();
-  }, [activeTab, job, scenarioId, jobId, scenarioApi, showNotification]);
+  }, [activeTab, job, scenarioId, jobId, showNotification]); // Removed scenarioApi
 
+  // Rest of the component remains the same
   const handleCancelJob = async () => {
     if (!scenarioId || !jobId || !job || job.status.toLowerCase() !== "running")
       return;
@@ -68,7 +69,7 @@ export const JobDetailPage = () => {
     try {
       await scenarioApi.cancelJob(scenarioId, jobId);
       const updatedJob = await scenarioApi.getJob(scenarioId, jobId);
-      setJob(updatedJob); // No longer an unknown type
+      setJob(updatedJob);
       showNotification("success", "Job cancelled successfully");
     } catch (err) {
       const errorMessage =
@@ -85,6 +86,7 @@ export const JobDetailPage = () => {
       setLogs(data); // Ensure getJobLogs returns a string
       showNotification("success", "Logs refreshed successfully");
     } catch (err) {
+      console.error("Error refreshing logs:", err);
       showNotification("danger", "Failed to refresh logs");
     }
   };

@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { SlButton, SlIcon } from "@shoelace-style/shoelace/dist/react";
 import { Scenario } from "../types/Scenario";
 import { Job } from "../types/Job";
 import { scenarioApi } from "../api/scenarios";
-import { useNotification } from "../contexts/NotificationContext";
+import { useNotification } from "../hooks/useNotification";
 
 type ScenarioContextType = {
   scenario: Scenario;
@@ -18,15 +18,10 @@ export const JobListPage = () => {
   const [loading, setLoading] = useState(true);
   const [cleanupInProgress, setCleanupInProgress] = useState(false);
 
-  useEffect(() => {
-    fetchJobs();
-  }, [scenario.scenarioId]);
-
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     try {
       setLoading(true);
-      const data: Job[] = await scenarioApi.listJobs(scenario.scenarioId); // Explicitly type as Job[]
-      // 생성 날짜 기준 내림차순으로 정렬
+      const data: Job[] = await scenarioApi.listJobs(scenario.scenarioId);
       const sortedJobs = data.sort(
         (a: Job, b: Job) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -40,7 +35,11 @@ export const JobListPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [scenario.scenarioId, showNotification]);
+
+  useEffect(() => {
+    fetchJobs();
+  }, [fetchJobs]);
 
   const handleCleanup = async () => {
     try {

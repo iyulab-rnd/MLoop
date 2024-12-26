@@ -7,6 +7,11 @@ import {
   PredictionCleanupResult 
 } from '../types/Prediction';
 
+interface EmptyRequest {
+  // 빈 요청을 위한 인터페이스
+  [key: string]: never;
+}
+
 export const predictionsApi = {
   // 예측 목록 조회
   list: async (scenarioId: string): Promise<Prediction[]> => {
@@ -42,7 +47,7 @@ export const predictionsApi = {
 
   // 예측 클린업
   cleanup: async (scenarioId: string): Promise<PredictionCleanupResult> => {
-    return api.post<PredictionCleanupResult, {}>(
+    return api.post<PredictionCleanupResult, EmptyRequest>(
       `/api/scenarios/${scenarioId}/predictions/cleanup`,
       {}
     );

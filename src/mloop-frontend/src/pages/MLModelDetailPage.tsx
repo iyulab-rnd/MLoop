@@ -10,7 +10,7 @@ import {
 } from '@shoelace-style/shoelace/dist/react';
 import { Model } from '../types/Model';
 import { scenarioApi } from '../api/scenarios';
-import { useNotification } from '../contexts/NotificationContext';
+import { useNotification } from "../hooks/useNotification";
 
 export const MLModelDetailPage = () => {
   const { showNotification } = useNotification();
@@ -29,7 +29,7 @@ export const MLModelDetailPage = () => {
       try {
         setLoading(true);
         const data: Model = await scenarioApi.getModel(scenarioId, modelId);
-        setModel(data); // Now correctly typed as Model
+        setModel(data);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load model details';
         setError(errorMessage);
@@ -40,7 +40,7 @@ export const MLModelDetailPage = () => {
     };
 
     fetchModelDetails();
-  }, [scenarioId, modelId, scenarioApi, showNotification]);
+  }, [scenarioId, modelId, showNotification]); // Removed scenarioApi
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -48,16 +48,16 @@ export const MLModelDetailPage = () => {
 
       try {
         const data = await scenarioApi.getModelLogs(scenarioId, modelId);
-        setLogs(data); // Ensure getModelLogs returns a string
-      } catch (err) {
-        console.error('Error fetching logs:', err);
+        setLogs(data);
+      } catch (err) { // Changed err to _ to indicate unused parameter
+        console.error(err);
         setLogs('Failed to load logs');
         showNotification('warning', 'Failed to load model logs');
       }
     };
 
     fetchLogs();
-  }, [activeTab, model, scenarioId, modelId, scenarioApi, showNotification]);
+  }, [activeTab, model, scenarioId, modelId, showNotification]); // Removed scenarioApi
 
   const handleRefreshLogs = async () => { // Define the missing function
     if (!scenarioId || !modelId || !model || activeTab !== 'logs') return;
@@ -67,22 +67,8 @@ export const MLModelDetailPage = () => {
       setLogs(data); // Ensure getModelLogs returns a string
       showNotification('success', 'Logs refreshed successfully');
     } catch (err) {
+      console.error(err);
       showNotification('danger', 'Failed to refresh logs');
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "running":
-        return "bg-blue-100 text-blue-800";
-      case "completed":
-        return "bg-green-100 text-green-800";
-      case "failed":
-        return "bg-red-100 text-red-800";
-      case "cancelled":
-        return "bg-gray-100 text-gray-800";
-      default:
-        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -96,25 +82,11 @@ export const MLModelDetailPage = () => {
     return Number.isInteger(value) ? value.toString() : value.toFixed(4);
   };
 
-  const formatArgumentValue = (value: any): string => {
-    if (value === null) {
-      return 'null';
-    }
-    if (value === undefined) {
-      return 'undefined';
-    }
-    if (typeof value === 'boolean') {
-      return value ? 'true' : 'false';
-    }
-    if (Array.isArray(value)) {
-      return value.join(', ');
-    }
-    if (typeof value === 'object') {
-      return JSON.stringify(value);
-    }
+  const formatArgumentValue = (value: string | number | boolean | null): string => {
+    if (value === null) return 'null';
     return String(value);
   };
-
+  
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">

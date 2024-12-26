@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ScenarioForm, ScenarioFormData } from '../components/scenarios/ScenarioForm';
 import { scenarioApi } from '../api/scenarios';
-import { useNotification } from '../contexts/NotificationContext';
+import { useNotification } from "../hooks/useNotification";
 
 export const EditScenarioPage = () => {
   const navigate = useNavigate();

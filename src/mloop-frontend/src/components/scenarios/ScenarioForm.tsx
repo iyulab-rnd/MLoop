@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import { SlInput, SlButton, SlSelect, SlOption, SlTextarea } from '@shoelace-style/shoelace/dist/react';
 import { TagInput } from '../../components/common/TagInput';
+import { SlChangeEvent, SlInputEvent } from '@shoelace-style/shoelace';
 
 export interface ScenarioFormData {
   name: string;
@@ -38,20 +39,17 @@ export const ScenarioForm: React.FC<ScenarioFormProps> = ({
     'object-detection',
   ];
 
-  const handleInputChange = useCallback((field: keyof ScenarioFormData) => (e: any) => {
-    let newValue = '';
-    if (e.detail && e.detail.value !== undefined) {
-      newValue = e.detail.value;
-    } else if (e.target && e.target.value !== undefined) {
-      newValue = e.target.value;
-    }
-
+  const handleInputChange = useCallback((field: keyof ScenarioFormData) => (
+    e: SlInputEvent | SlChangeEvent
+  ) => {
+    const value = (e.target as HTMLInputElement).value || e.detail?.value || '';
+    
     onChange({
       ...formData,
-      [field]: newValue
+      [field]: value
     });
   }, [formData, onChange]);
-
+  
   const handleTagsChange = useCallback((value: string[] | ((prev: string[]) => string[])) => {
     onChange({
       ...formData,

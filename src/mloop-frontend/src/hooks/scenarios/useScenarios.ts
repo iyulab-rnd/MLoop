@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../useNotification';
 import { Scenario } from '../../types/Scenario';
 import { scenarioApi } from '../../api/scenarios';
 

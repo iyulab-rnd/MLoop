@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { SlInput, SlTag } from '@shoelace-style/shoelace/dist/react';
+import type { SlInput as SlInputElement } from '@shoelace-style/shoelace';
 
 interface TagInputProps {
   tags: string[];
@@ -9,7 +10,7 @@ interface TagInputProps {
 
 export const TagInput: React.FC<TagInputProps> = ({ tags, setTags, placeholder = "Type tag and press Enter..." }) => {
   const [inputValue, setInputValue] = useState('');
-  const inputRef = useRef<any>(null);
+  const inputRef = useRef<SlInputElement>(null);
 
   // 태그 추가 핸들러
   const handleAddTag = useCallback((e?: React.KeyboardEvent<HTMLElement> | KeyboardEvent) => {
