@@ -1,6 +1,5 @@
 import { apiRequest } from './client';
 
-// 제네릭을 사용하여 요청과 응답의 타입을 지정할 수 있습니다.
 export const api = {
   get: async <T>(url: string, options?: RequestInit): Promise<T> => {
     return await apiRequest<T>(url, { method: 'GET', ...options });
@@ -8,21 +7,35 @@ export const api = {
 
   post: async <T, U>(url: string, body: U, options?: RequestInit): Promise<T> => {
     let headers: Record<string, string> = {};
+    let processedBody: string | FormData;
     
-    // FormData인 경우 Content-Type 헤더를 설정하지 않음
-    if (!(body instanceof FormData)) {
+    if (body instanceof FormData) {
+      headers = { ...Object(options?.headers) };
+      processedBody = body;
+    } else if (
+      typeof body === 'string' && 
+      options?.headers && 
+      Object(options.headers)['Content-Type']?.startsWith('text/')
+    ) {
+      // Handle text/* content types (including TSV, CSV) - send as raw string
+      headers = {
+        'Content-Type': Object(options.headers)['Content-Type'],
+        ...Object(options.headers)
+      };
+      processedBody = body;
+    } else {
+      // Default JSON handling
       headers = {
         'Content-Type': 'application/json',
-        ...(options?.headers as Record<string, string>)
+        ...Object(options?.headers)
       };
-    } else {
-      headers = { ...(options?.headers as Record<string, string>) };
+      processedBody = JSON.stringify(body);
     }
   
     return await apiRequest<T>(url, {
       method: 'POST',
       headers,
-      body: body instanceof FormData ? body : JSON.stringify(body),
+      body: processedBody,
       ...options,
     });
   },
@@ -32,7 +45,7 @@ export const api = {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        ...(options && options.headers),
+        ...Object(options?.headers),
       },
       body: JSON.stringify(body),
       ...options,

@@ -3,6 +3,19 @@ import { api } from "./api";
 
 type EmptyRequest = Record<string, never>;
 
+const detectInputFormat = (input: string): 'tsv' | 'csv' => {
+  // 첫 줄을 가져옵니다
+  const firstLine = input.split(/\r?\n/)[0];
+  
+  // 탭이 있으면 TSV로 판단
+  if (firstLine.includes('\t')) {
+    return 'tsv';
+  }
+  
+  // 그 외의 경우 CSV로 판단
+  return 'csv';
+};
+
 export const scenarioApi = {
   // 시나리오 목록 조회
   list: async (params?: ScenarioSearchParams): Promise<Scenario[]> => {
@@ -158,12 +171,13 @@ export const scenarioApi = {
     scenarioId: string,
     input: string
   ): Promise<{ predictionId: string }> => {
+    const format = detectInputFormat(input);
     return api.post<{ predictionId: string }, string>(
       `/api/scenarios/${scenarioId}/predict`,
       input,
       {
         headers: {
-          "Content-Type": "text/tab-separated-values",
+          "Content-Type": format === 'tsv' ? "text/tab-separated-values" : "text/csv",
         },
       }
     );

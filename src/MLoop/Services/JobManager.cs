@@ -11,8 +11,8 @@ public class JobManager
 {
     private readonly IFileStorage _storage;
     private readonly ILogger<JobManager> _logger;
-    private readonly QueueServiceClient? _queueServiceClient;
-    private QueueClient? _scalingQueue;
+    private readonly QueueClient? _scalingQueue;
+
     private const string JobResultFileName = "result.json";
 
     public JobManager(
@@ -29,19 +29,32 @@ public class JobManager
 
         if (!string.IsNullOrEmpty(queueConnection))
         {
-            _queueServiceClient = new QueueServiceClient(queueConnection);
-            _scalingQueue = _queueServiceClient.GetQueueClient(queueName);
-            _scalingQueue.Create(); // 동기식 호출 사용
+            try
+            {
+                var queueServiceClient = new QueueServiceClient(queueConnection);
+                _scalingQueue = queueServiceClient.GetQueueClient(queueName);
+                _scalingQueue.Create(); // 동기식 호출 사용
+                _logger.LogInformation("Successfully initialized scaling queue: {QueueName}", queueName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to initialize scaling queue. Worker will operate without queue support");
+                _scalingQueue = null;
+            }
+        }
+        else
+        {
+            _logger.LogInformation("Queue connection not configured. Worker will operate without queue support");
         }
     }
 
     private async Task SendScalingNotificationAsync(MLJob job)
     {
+        // 큐가 없으면 즉시 리턴
         if (_scalingQueue == null) return;
 
         try
         {
-            // 메시지 생성
             var message = Convert.ToBase64String(
                 Encoding.UTF8.GetBytes(JsonHelper.Serialize(new
                 {
@@ -51,7 +64,6 @@ public class JobManager
                 }))
             );
 
-            // 메시지 전송
             var response = await _scalingQueue.SendMessageAsync(message,
                 visibilityTimeout: TimeSpan.FromSeconds(30),
                 timeToLive: TimeSpan.FromMinutes(1));
@@ -62,9 +74,8 @@ public class JobManager
         }
         catch (Exception ex)
         {
-            // Scaling 통지 실패는 무시
             _logger.LogWarning(ex,
-                "Failed to send scaling notification for job {JobId}",
+                "Failed to send scaling notification for job {JobId}. This is non-critical.",
                 job.JobId);
         }
     }

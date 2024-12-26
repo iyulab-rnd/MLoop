@@ -22,6 +22,7 @@ public class WorkerService : BackgroundService
     private MLJob? _currentJob;
     private CancellationTokenSource? _currentJobCts;
     private DateTime _lastJobCheckTime;
+    private bool hasQueue;
 
     public WorkerService(
         IOptions<WorkerSettings> settings,
@@ -38,6 +39,73 @@ public class WorkerService : BackgroundService
         _logger = logger;
         _workerId = _settings.WorkerId ?? $"worker_{Environment.MachineName}_{Guid.NewGuid():N}";
         _lastJobCheckTime = DateTime.UtcNow;
+
+        var queueConnection = configuration.GetConnectionString("QueueConnection");
+        this.hasQueue = !string.IsNullOrEmpty(queueConnection);
+    }
+
+    public override async Task StartAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation(
+            """
+            Worker service starting:
+            WorkerId: {WorkerId}
+            Machine: {MachineName}
+            Process: {ProcessId}
+            Base Directory: {BaseDir}
+            Job Timeout: {JobTimeout}
+            Job Polling Interval: {PollingInterval}
+            Idle Timeout: {IdleTimeout}
+            """,
+            _workerId,
+            Environment.MachineName,
+            Environment.ProcessId,
+            _storage.GetScenarioBaseDir(""),
+            _settings.JobTimeout,
+            _settings.JobPollingInterval,
+            _settings.IdleTimeout);
+
+        try
+        {
+            var scenarios = await _storage.GetScenarioIdsAsync();
+            if (scenarios.Any())
+            {
+                _logger.LogInformation(
+                    "Found {Count} scenarios: {Scenarios}",
+                    scenarios.Count(),
+                    string.Join(", ", scenarios));
+            }
+            else
+            {
+                _logger.LogInformation("No scenarios found in base directory");
+            }
+
+            foreach (var scenarioId in scenarios)
+            {
+                var jobs = await _jobManager.GetScenarioJobsAsync(scenarioId);
+                var abandonedJobs = jobs.Where(j =>
+                    j.Status == MLJobStatus.Running &&
+                    j.WorkerId == _workerId);
+
+                foreach (var job in abandonedJobs)
+                {
+                    _logger.LogWarning(
+                        "Found abandoned job from previous worker instance - JobId: {JobId}, ScenarioId: {ScenarioId}",
+                        job.JobId, job.ScenarioId);
+
+                    await HandleJobFailureAsync(
+                        job,
+                        "Job was abandoned due to worker restart or crash",
+                        JobFailureType.WorkerCrash);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during worker startup");
+        }
+
+        await base.StartAsync(cancellationToken);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -58,7 +126,7 @@ public class WorkerService : BackgroundService
                     else
                     {
                         // IdleTimeout 체크 (설정된 시간동안 작업이 없으면 서비스 종료)
-                        if (DateTime.UtcNow - _lastJobCheckTime > _settings.IdleTimeout)
+                        if (hasQueue && DateTime.UtcNow - _lastJobCheckTime > _settings.IdleTimeout)
                         {
                             _logger.LogInformation(
                                 "Worker idle timeout reached after {IdleMinutes} minutes. Shutting down.",
@@ -153,41 +221,6 @@ public class WorkerService : BackgroundService
         }
 
         await base.StopAsync(cancellationToken);
-    }
-
-    public override async Task StartAsync(CancellationToken cancellationToken)
-    {
-        _logger.LogInformation("Worker service starting with ID: {WorkerId}", _workerId);
-
-        try
-        {
-            var scenarios = await _storage.GetScenarioIdsAsync();
-            foreach (var scenarioId in scenarios)
-            {
-                var jobs = await _jobManager.GetScenarioJobsAsync(scenarioId);
-                var abandonedJobs = jobs.Where(j =>
-                    j.Status == MLJobStatus.Running &&
-                    j.WorkerId == _workerId);
-
-                foreach (var job in abandonedJobs)
-                {
-                    _logger.LogWarning(
-                        "Found abandoned job from previous worker instance - JobId: {JobId}, ScenarioId: {ScenarioId}",
-                        job.JobId, job.ScenarioId);
-
-                    await HandleJobFailureAsync(
-                        job,
-                        "Job was abandoned due to worker restart or crash",
-                        JobFailureType.WorkerCrash);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error processing abandoned jobs during worker startup");
-        }
-
-        await base.StartAsync(cancellationToken);
     }
 
     private async Task LogJobMessageAsync(MLJob job, string message)
