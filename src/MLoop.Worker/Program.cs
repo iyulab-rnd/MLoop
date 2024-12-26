@@ -14,6 +14,10 @@ using MLoop.Worker.Steps.Registry;
 using MLoop.Worker.Tasks.MLNetPredictTask;
 using MLoop.Worker.Tasks.MLNetTrainTask;
 
+#if DEBUG
+Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", "Development");
+#endif
+
 var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
 {
     EnvironmentName = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")

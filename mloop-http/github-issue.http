@@ -1,10 +1,10 @@
 @host = https://localhost:7102
 # @host = https://mloop.iyulab.com
 
-@scenarioId = 55345c2cdbc444c9b4ae6b2a6c9d3277
+@scenarioId = a637326e171b49c3bf41aba743873eec
 @jobId = 8cb84a1ef39244a8a50809803c61e24a
-@modelId = m20241222171046
-@predictionId = 2acc96029b784af9b2e2c769c63b6c2b
+@modelId = m20241226070234
+@predictionId = 9c05e582b8de45b8b7da3ac859d6b7b5
 
 # < D:\data\MLoop\files\GitHubIssueClassification\issues_train.tsv
 
@@ -439,3 +439,60 @@ GET {{host}}/api/scenarios/{{scenarioId}}/predictions/{{predictionId}}
 
 ### GET Predictions
 GET {{host}}/api/scenarios/{{scenarioId}}/predictions
+
+#### Response: HTTP/1.1 200 OK
+# Content-Type: application/json; charset=utf-8
+
+# [
+#   {
+#     "predictionId": "05d8abac3b88457fbc6d9e6a0a68c2c8",
+#     "modelId": "m20241224053629",
+#     "status": "Waiting",
+#     "createdAt": "2024-12-26T00:44:20.7295003Z",
+#     "hasResult": false,
+#     "inputFile": "input.tsv"
+#   },
+#   {
+#     "predictionId": "05d8abac3b88457fbc6d9e6a0a68c2c8",
+#     "modelId": "m20241224053629",
+#     "status": "Completed",
+#     "createdAt": "2024-12-26T00:44:20.7295003Z",
+#     "completedAt": "2024-12-26T00:46:08.2557483Z",
+#     "hasResult": true,
+#     "inputFile": "input.tsv"
+#   }
+# ]
+
+### GET Default Predict File
+GET {{host}}/api/scenarios/{{scenarioId}}/predictions/{{predictionId}}/files/result.csv
+
+
+#### Response: HTTP/1.1 200 OK
+# Content-Type: text/csv
+
+# Top1,Top1Score,Top2,Top2Score,Top3,Top3Score
+# area-System.IO,0.471420,area-System.Net,0.092583,area-Infrastructure,0.088676
+
+### GET Prediction Folder Files
+GET {{host}}/api/scenarios/{{scenarioId}}/predictions/{{predictionId}}/files
+
+#### Response: HTTP/1.1 200 OK
+# Content-Type: application/json; charset=utf-8
+
+# [
+#   {
+#     "name": "input.tsv",
+#     "path": "input.tsv",
+#     "size": 391,
+#     "lastModified": "2024-12-26T00:44:20.7263708Z"
+#   },
+#   {
+#     "name": "result.csv",
+#     "path": "result.csv",
+#     "size": 125,
+#     "lastModified": "2024-12-26T00:46:08.2052972Z"
+#   }
+# ]
+
+### Download File
+GET {{host}}/api/scenarios/{{scenarioId}}/predictions/{{predictionId}}/files/<filePath>

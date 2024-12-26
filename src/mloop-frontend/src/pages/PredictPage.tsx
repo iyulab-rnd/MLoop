@@ -12,7 +12,7 @@ export const PredictPage = () => {
   const { showNotification } = useNotification();
   const [input, setInput] = useState(defaultInput);
   const [predicting, setPredicting] = useState(false);
-  const [result, setResult] = useState<Record<string, string | number> | null>(null);
+  const [result, setResult] = useState<string>('');
   const [pollingInterval, setPollingInterval] = useState<number | null>(null);
 
   useEffect(() => {
@@ -28,16 +28,17 @@ export const PredictPage = () => {
       try {
         const response = await scenarioApi.getPredictionResult(scenarioId!, pid);
         
-        if (response.status === 'processing') {
-          // 계속 폴링
+        if (typeof response === 'object' && 'status' in response) {
+          // Still processing
           return;
         }
         
-        // CSV 응답인 경우 (예측 완료)
+        // Prediction completed - format the result as text
+        const resultText = JSON.stringify(response, null, 2);
         clearInterval(interval);
         setPollingInterval(null);
         setPredicting(false);
-        setResult(response);
+        setResult(resultText);
       } catch (error) {
         console.error(error);
         clearInterval(interval);
@@ -45,7 +46,7 @@ export const PredictPage = () => {
         setPredicting(false);
         showNotification('danger', 'Failed to get prediction result');
       }
-    }, 2000); // 2초마다 폴링
+    }, 2000);
 
     setPollingInterval(interval);
   };
@@ -53,7 +54,7 @@ export const PredictPage = () => {
   const handlePredict = async () => {
     try {
       setPredicting(true);
-      setResult(null);
+      setResult('');
       
       const response = await scenarioApi.predict(scenarioId!, input);
       startPolling(response.predictionId);
@@ -72,7 +73,7 @@ export const PredictPage = () => {
       </div>
 
       <div className="grid grid-cols-2 gap-6">
-        {/* 좌측 에디터 패널 */}
+        {/* Input Editor Panel */}
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-medium">Input Data (CSV/TSV)</h2>
@@ -100,45 +101,29 @@ export const PredictPage = () => {
           </div>
         </div>
 
-        {/* 우측 결과 패널 */}
+        {/* Result Editor Panel */}
         <div>
           <h2 className="text-lg font-medium mb-4">Results</h2>
-          <div className="border rounded-lg p-4 h-[600px] overflow-auto bg-white">
+          <div className="border rounded-lg overflow-hidden h-[600px]">
             {predicting ? (
-              <div className="flex items-center justify-center h-full">
+              <div className="flex items-center justify-center h-full bg-white">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
                   <p className="text-gray-600">Processing prediction...</p>
                 </div>
               </div>
-            ) : result ? (
-              <div>
-                <div className="grid grid-cols-3 gap-4">
-                  {Object.entries(result)
-                    .filter(([key]) => !key.includes('status'))
-                    .reduce((acc: [string, string | number][], [, value], index) => {
-                      if (index % 2 === 0) {
-                        // label entry
-                        const nextValue = Object.entries(result)[index + 1]?.[1];
-                        if (nextValue !== undefined) {
-                          acc.push([value.toString(), nextValue as number]);
-                        }
-                      }
-                      return acc;
-                    }, [])
-                    .map(([label, score], index) => (
-                      <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                        <h3 className="font-medium text-sm text-gray-500 mb-2">Top {index + 1}</h3>
-                        <p className="font-medium">{label}</p>
-                        <p className="text-sm text-gray-600">{(Number(score) * 100).toFixed(2)}%</p>
-                      </div>
-                    ))}
-                </div>
-              </div>
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
-                No results yet. Click Predict to start prediction.
-              </div>
+              <Editor
+                height="600px"
+                defaultLanguage="json"
+                value={result || "// No results yet. Click Predict to start prediction."}
+                options={{
+                  readOnly: true,
+                  minimap: { enabled: false },
+                  lineNumbers: 'on',
+                  scrollBeyondLastLine: false,
+                }}
+              />
             )}
           </div>
         </div>

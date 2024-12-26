@@ -40,7 +40,7 @@ export const NewScenarioPage = () => {
     setError(null);
 
     try {
-      await scenarioApi.create({
+      const newScenario = await scenarioApi.create({
         name: formData.name.trim(),
         mlType: formData.mlType.trim(),
         description: formData.description,
@@ -48,7 +48,7 @@ export const NewScenarioPage = () => {
       });
 
       showNotification('success', 'Scenario created successfully');
-      navigate('/scenarios');
+      navigate(`/scenarios/${newScenario.scenarioId}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create scenario';
       setError(errorMessage);
