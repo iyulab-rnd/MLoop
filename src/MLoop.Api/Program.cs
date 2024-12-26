@@ -90,9 +90,13 @@ app.UseRouting();
 app.UseHttpsRedirection();
 app.UseAuthorization();
 
+// API 라우트는 SPA fallback 전에 와야 합니다
 app.MapControllers();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
+
+// SPA fallback route - API가 아닌 모든 요청을 index.html로 리다이렉트
+app.MapFallbackToFile("index.html");
 
 app.Run();
