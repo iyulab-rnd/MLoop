@@ -2,33 +2,34 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MLoop.Models.Jobs;
-using MLoop.Models.Workflows;
 using MLoop.Services;
-using MLoop.Storages;
 using MLoop.Worker.Configuration;
 using MLoop.Worker.Pipeline;
+using Microsoft.Extensions.Configuration;
+using MLoop.Storages;
+using MLoop.Models.Workflows;
 
 namespace MLoop.Worker;
 
-public class WorkerBackgroundService : BackgroundService
+public class WorkerService : BackgroundService
 {
     private readonly string _workerId;
     private readonly IFileStorage _storage;
     private readonly JobManager _jobManager;
     private readonly PipelineExecutor _pipelineExecutor;
-    private readonly ILogger<WorkerBackgroundService> _logger;
+    private readonly ILogger<WorkerService> _logger;
     private readonly WorkerSettings _settings;
-    private Timer? _cleanupTimer;
     private MLJob? _currentJob;
     private CancellationTokenSource? _currentJobCts;
+    private DateTime _lastJobCheckTime;
 
-    public WorkerBackgroundService(
+    public WorkerService(
         IOptions<WorkerSettings> settings,
         IFileStorage storage,
         JobManager jobManager,
         PipelineExecutor pipelineExecutor,
-        ILogger<WorkerBackgroundService> logger
-    )
+        ILogger<WorkerService> logger,
+        IConfiguration configuration)
     {
         _settings = settings.Value;
         _storage = storage;
@@ -36,20 +37,7 @@ public class WorkerBackgroundService : BackgroundService
         _pipelineExecutor = pipelineExecutor;
         _logger = logger;
         _workerId = _settings.WorkerId ?? $"worker_{Environment.MachineName}_{Guid.NewGuid():N}";
-    }
-
-    private async Task LogJobMessageAsync(MLJob job, string message)
-    {
-        try
-        {
-            var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff UTC");
-            var logMessage = $"[{timestamp}] {message}\n";
-            await File.AppendAllTextAsync(_storage.GetJobLogsPath(job.ScenarioId, job.JobId), logMessage);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to write to job log file");
-        }
+        _lastJobCheckTime = DateTime.UtcNow;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -58,15 +46,25 @@ public class WorkerBackgroundService : BackgroundService
         {
             try
             {
+                // 현재 작업이 없는 경우만 새 작업 찾기
                 if (_currentJob == null)
                 {
                     var nextJob = await _jobManager.FindAndClaimNextJobAsync(_workerId);
                     if (nextJob != null)
                     {
+                        _lastJobCheckTime = DateTime.UtcNow; // 작업을 찾은 시간 업데이트
                         await ProcessJobAsync(nextJob, stoppingToken);
                     }
                     else
                     {
+                        // IdleTimeout 체크 (설정된 시간동안 작업이 없으면 서비스 종료)
+                        if (DateTime.UtcNow - _lastJobCheckTime > _settings.IdleTimeout)
+                        {
+                            _logger.LogInformation(
+                                "Worker idle timeout reached after {IdleMinutes} minutes. Shutting down.",
+                                _settings.IdleTimeout.TotalMinutes);
+                            break; // ExecuteAsync를 종료하여 Worker 종료
+                        }
                         await Task.Delay(_settings.JobPollingInterval, stoppingToken);
                     }
                 }
@@ -104,10 +102,10 @@ public class WorkerBackgroundService : BackgroundService
                 $"Process ID: {Environment.ProcessId}\n" +
                 $"Job Type: {job.JobType}\n");
 
-            _logger.LogInformation("Processing job {JobId} for scenario {ScenarioId}", job.JobId, job.ScenarioId);
+            _logger.LogInformation("Processing job {JobId} for scenario {ScenarioId}",
+                job.JobId, job.ScenarioId);
 
             await ProcessJobByTypeAsync(job, _currentJobCts.Token);
-
             await HandleJobCompletionAsync(job);
         }
         catch (OperationCanceledException) when (_currentJobCts.IsCancellationRequested)
@@ -133,6 +131,76 @@ public class WorkerBackgroundService : BackgroundService
                 _currentJobCts.Dispose();
                 _currentJobCts = null;
             }
+        }
+    }
+
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Worker service stopping: {WorkerId}", _workerId);
+
+        if (_currentJob != null)
+        {
+            await HandleJobFailureAsync(
+                _currentJob,
+                "Worker shutdown initiated",
+                JobFailureType.WorkerCrash);
+        }
+
+        if (_currentJobCts != null)
+        {
+            _currentJobCts.Cancel();
+            _currentJobCts.Dispose();
+        }
+
+        await base.StopAsync(cancellationToken);
+    }
+
+    public override async Task StartAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Worker service starting with ID: {WorkerId}", _workerId);
+
+        try
+        {
+            var scenarios = await _storage.GetScenarioIdsAsync();
+            foreach (var scenarioId in scenarios)
+            {
+                var jobs = await _jobManager.GetScenarioJobsAsync(scenarioId);
+                var abandonedJobs = jobs.Where(j =>
+                    j.Status == MLJobStatus.Running &&
+                    j.WorkerId == _workerId);
+
+                foreach (var job in abandonedJobs)
+                {
+                    _logger.LogWarning(
+                        "Found abandoned job from previous worker instance - JobId: {JobId}, ScenarioId: {ScenarioId}",
+                        job.JobId, job.ScenarioId);
+
+                    await HandleJobFailureAsync(
+                        job,
+                        "Job was abandoned due to worker restart or crash",
+                        JobFailureType.WorkerCrash);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing abandoned jobs during worker startup");
+        }
+
+        await base.StartAsync(cancellationToken);
+    }
+
+    private async Task LogJobMessageAsync(MLJob job, string message)
+    {
+        try
+        {
+            var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff UTC");
+            var logMessage = $"[{timestamp}] {message}\n";
+            await File.AppendAllTextAsync(_storage.GetJobLogsPath(job.ScenarioId, job.JobId), logMessage);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to write to job log file");
         }
     }
 
@@ -206,103 +274,6 @@ public class WorkerBackgroundService : BackgroundService
                     job.JobId, job.ModelId);
             }
         }
-    }
-
-    public override async Task StopAsync(CancellationToken cancellationToken)
-    {
-        _logger.LogInformation("Worker service stopping: {WorkerId}", _workerId);
-
-        if (_cleanupTimer != null)
-        {
-            await _cleanupTimer.DisposeAsync();
-        }
-
-        if (_currentJob != null)
-        {
-            await HandleJobFailureAsync(
-                _currentJob,
-                "Worker shutdown initiated",
-                JobFailureType.WorkerCrash);
-        }
-
-        if (_currentJobCts != null)
-        {
-            _currentJobCts.Cancel();
-            _currentJobCts.Dispose();
-            _currentJobCts = null;
-        }
-
-        await base.StopAsync(cancellationToken);
-    }
-
-    private async void CleanupOrphanedJobs(object? state)
-    {
-        try
-        {
-            var orphanedJobs = await _jobManager.GetOrphanedJobsAsync(TimeSpan.FromMinutes(30));
-            foreach (var job in orphanedJobs)
-            {
-                if (job.WorkerId == _workerId && job != _currentJob)
-                {
-                    await LogJobMessageAsync(job,
-                        $"Job was orphaned and will be marked as failed\n" +
-                        $"Last status: {job.Status}\n" +
-                        $"Time since start: {DateTime.UtcNow - (job.StartedAt ?? DateTime.UtcNow)}\n");
-
-                    _logger.LogWarning(
-                        "Found orphaned job: {JobId} previously assigned to this worker. Marking as failed.",
-                        job.JobId);
-
-                    await HandleJobFailureAsync(
-                        job,
-                        "Job was orphaned due to worker restart or crash",
-                        JobFailureType.WorkerCrash);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during orphaned jobs cleanup");
-        }
-    }
-
-    public override async Task StartAsync(CancellationToken cancellationToken)
-    {
-        _logger.LogInformation("Worker service starting with ID: {WorkerId}", _workerId);
-
-        try
-        {
-            var scenarios = await _storage.GetScenarioIdsAsync();
-            foreach (var scenarioId in scenarios)
-            {
-                var jobs = await _jobManager.GetScenarioJobsAsync(scenarioId);
-                var abandonedJobs = jobs.Where(j =>
-                    j.Status == MLJobStatus.Running &&
-                    j.WorkerId == _workerId);
-
-                foreach (var job in abandonedJobs)
-                {
-                    _logger.LogWarning("Found abandoned job from previous worker instance - JobId: {JobId}, ScenarioId: {ScenarioId}", job.JobId, job.ScenarioId);
-
-                    await HandleJobFailureAsync(
-                        job,
-                        "Job was abandoned due to worker restart or crash",
-                        JobFailureType.WorkerCrash);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error processing abandoned jobs during worker startup");
-        }
-
-        _cleanupTimer = new Timer(
-            CleanupOrphanedJobs,
-            null,
-            TimeSpan.FromMinutes(1),
-            _settings.OrphanedJobCleanupInterval);
-
-        await base.StartAsync(cancellationToken);
     }
 
     private async Task ProcessJobByTypeAsync(MLJob job, CancellationToken cancellationToken)

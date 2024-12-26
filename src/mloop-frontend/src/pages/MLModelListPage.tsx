@@ -161,7 +161,6 @@ export const MLModelListPage = () => {
                 </th>
               </tr>
             </thead>
-            // 테이블 부분 수정
             <tbody className="bg-white divide-y divide-gray-200">
               {models.map((model) => (
                 <tr key={model.modelId} className="hover:bg-gray-50">

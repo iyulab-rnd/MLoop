@@ -6,4 +6,5 @@ public class WorkerSettings
     public TimeSpan JobTimeout { get; set; } = TimeSpan.FromHours(2);
     public TimeSpan JobPollingInterval { get; set; } = TimeSpan.FromSeconds(5);
     public TimeSpan OrphanedJobCleanupInterval { get; set; } = TimeSpan.FromMinutes(5);
+    public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromMinutes(5);
 }

@@ -436,3 +436,6 @@ GET {{host}}/api/scenarios/{{scenarioId}}/predictions/{{predictionId}}
 
 # Top1,Top1Score,Top2,Top2Score,Top3,Top3Score
 # area-System.IO,0.471420,area-System.Net,0.092583,area-Infrastructure,0.088676
+
+### GET Predictions
+GET {{host}}/api/scenarios/{{scenarioId}}/predictions

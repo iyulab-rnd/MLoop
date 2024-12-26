@@ -15,6 +15,8 @@ import { ScenarioWorkflowsPage } from './pages/ScenarioWorkflowsPage';
 import { MLModelListPage } from './pages/MLModelListPage';
 import { MLModelDetailPage } from './pages/MLModelDetailPage';
 import { PredictPage } from './pages/PredictPage';
+import { PredictionsPage } from './pages/PredictionsPage';
+import { PredictionDetailPage } from './pages/PredictionDetailPage';
 
 setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.19.1/cdn/');
 
@@ -38,6 +40,8 @@ function App() {
                   <Route path="models" element={<MLModelListPage />} />
                   <Route path="models/:modelId" element={<MLModelDetailPage />} />
                   <Route path="workflows" element={<ScenarioWorkflowsPage />} />
+                  <Route path="predictions" element={<PredictionsPage />} />
+                  <Route path="predictions/:predictionId" element={<PredictionDetailPage />} />
                 </Route>
                 <Route path="/scenarios/:scenarioId/models/:modelId/predict" element={<PredictPage />} />
               </Routes>

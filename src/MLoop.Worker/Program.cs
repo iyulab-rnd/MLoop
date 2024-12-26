@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -13,7 +14,19 @@ using MLoop.Worker.Steps.Registry;
 using MLoop.Worker.Tasks.MLNetPredictTask;
 using MLoop.Worker.Tasks.MLNetTrainTask;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+{
+    EnvironmentName = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
+                     ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+                     ?? "Production"
+});
+
+// JSON 설정 파일들을 명시적으로 추가
+builder.Configuration
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables();
 
 // 설정 구성
 builder.Services.Configure<WorkerSettings>(builder.Configuration.GetSection("Worker"));
@@ -62,7 +75,7 @@ builder.Services.AddSingleton(sp =>
 builder.Services.AddSingleton<PipelineExecutor>();
 
 // Worker 서비스 등록
-builder.Services.AddHostedService<WorkerBackgroundService>();
+builder.Services.AddHostedService<WorkerService>();
 
 // 로깅 구성
 builder.Logging.ClearProviders();

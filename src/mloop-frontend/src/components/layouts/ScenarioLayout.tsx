@@ -171,28 +171,34 @@ export const ScenarioLayout = () => {
                 Overview
               </TabItem>
               <TabItem
-                to={`${baseUrl}/data`}
-                current={currentPath.includes("/data")}
-              >
-                Data
-              </TabItem>
-              <TabItem
-                to={`${baseUrl}/jobs`}
-                current={currentPath.includes("/jobs")}
-              >
-                Jobs
-              </TabItem>
-              <TabItem
                 to={`${baseUrl}/models`}
                 current={currentPath.includes("/models")}
               >
                 Models
               </TabItem>
               <TabItem
+                to={`${baseUrl}/data`}
+                current={currentPath.includes("/data")}
+              >
+                Data
+              </TabItem>
+              <TabItem
                 to={`${baseUrl}/workflows`}
                 current={currentPath.includes("/workflows")}
               >
                 Workflows
+              </TabItem>
+              <TabItem
+                to={`${baseUrl}/predictions`}
+                current={currentPath.includes("/predictions")}
+              >
+                Predictions
+              </TabItem>
+              <TabItem
+                to={`${baseUrl}/jobs`}
+                current={currentPath.includes("/jobs")}
+              >
+                Jobs
               </TabItem>
             </div>
           </div>

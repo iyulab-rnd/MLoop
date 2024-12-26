@@ -4,8 +4,10 @@ EXPOSE 80
 EXPOSE 443
 # 환경 변수 설정
 ENV ASPNETCORE_URLS="http://+:80"
-ENV Storage__BasePath="/var/data/mloop"
 ENV WebRootPath="/var/data/wwwroot"
+
+ENV Storage__BasePath="/var/data/mloop"
+ENV ConnectionStrings__QueueConnection=""
 
 COPY publish ./
 ENTRYPOINT ["dotnet", "MLoop.Api.dll"]

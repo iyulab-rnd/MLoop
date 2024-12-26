@@ -27,8 +27,9 @@ public class PredictionsController : ControllerBase
     }
 
     [HttpPost]
-    [Route("/scenarios/{scenarioId}/predict")]
-    [Route("/scenarios/{scenarioId}/models/{modelId}/predict")]
+    [Route("/api/scenarios/{scenarioId}/predict")]
+    [Route("/api/scenarios/{scenarioId}/predictions")]
+    [Route("/api/scenarios/{scenarioId}/models/{modelId}/predict")]
     public async Task<IActionResult> Predict(
         string scenarioId,
         [FromBody] string content,
@@ -90,6 +91,58 @@ public class PredictionsController : ControllerBase
         {
             _logger.LogError(ex, "Error creating prediction for scenario {ScenarioId}", scenarioId);
             return StatusCode(500, "Error creating prediction");
+        }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetPredictions(string scenarioId)
+    {
+        try
+        {
+            var predictionsDir = _storage.GetPredictionsDir(scenarioId);
+            if (!Directory.Exists(predictionsDir))
+            {
+                return Ok(new List<object>());
+            }
+
+            var predictions = new List<object>();
+            var predictionDirs = Directory.GetDirectories(predictionsDir);
+
+            foreach (var predictionDir in predictionDirs)
+            {
+                var predictionId = Path.GetFileName(predictionDir);
+                var job = await _jobService.GetPredictionJobAsync(scenarioId, predictionId);
+
+                if (job != null)
+                {
+                    var resultPath = _storage.GetPredictionResultPath(scenarioId, predictionId);
+                    var inputPath = Directory.GetFiles(predictionDir, "input.*").FirstOrDefault();
+
+                    predictions.Add(new
+                    {
+                        predictionId = job.JobId,
+                        modelId = job.ModelId,
+                        status = job.Status.ToString(),
+                        createdAt = job.CreatedAt,
+                        completedAt = job.CompletedAt,
+                        errorMessage = job.ErrorMessage,
+                        hasResult = System.IO.File.Exists(resultPath),
+                        inputFile = inputPath != null ? Path.GetFileName(inputPath) : null
+                    });
+                }
+            }
+
+            // 생성일시 기준 내림차순 정렬
+            predictions = predictions
+                .OrderByDescending(p => ((DateTime)p.GetType().GetProperty("createdAt")!.GetValue(p)!))
+                .ToList();
+
+            return Ok(predictions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving predictions for scenario {ScenarioId}", scenarioId);
+            return StatusCode(500, new { message = "Error retrieving predictions" });
         }
     }
 
@@ -190,6 +243,91 @@ public class PredictionsController : ControllerBase
                 "Error cleaning up predictions for scenario {ScenarioId}",
                 scenarioId);
             return StatusCode(500, new { message = "Error cleaning up predictions" });
+        }
+    }
+
+    [HttpGet("{predictionId}/files")]
+    public IActionResult GetPredictionFiles(string scenarioId, string predictionId)
+    {
+        try
+        {
+            var predictionDir = _storage.GetPredictionDir(scenarioId, predictionId);
+            if (!Directory.Exists(predictionDir))
+            {
+                return NotFound(new { message = "Prediction not found" });
+            }
+
+            var files = Directory.GetFiles(predictionDir)
+                .Select(f => new
+                {
+                    name = Path.GetFileName(f),
+                    path = Path.GetRelativePath(predictionDir, f),
+                    size = new FileInfo(f).Length,
+                    lastModified = System.IO.File.GetLastWriteTimeUtc(f)
+                });
+
+            return Ok(files);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error listing files for prediction {PredictionId} in scenario {ScenarioId}",
+                predictionId, scenarioId);
+            return StatusCode(500, new { message = "Error listing prediction files" });
+        }
+    }
+
+    [HttpGet("{predictionId}/files/{*filePath}")]
+    public IActionResult DownloadFile(string scenarioId, string predictionId, string filePath)
+    {
+        try
+        {
+            var predictionDir = _storage.GetPredictionDir(scenarioId, predictionId);
+            if (!Directory.Exists(predictionDir))
+            {
+                return NotFound(new { message = "Prediction not found" });
+            }
+
+            // 경로 조작 방지
+            if (filePath.Contains("..") || Path.IsPathRooted(filePath))
+            {
+                return BadRequest(new { message = "Invalid file path" });
+            }
+
+            var fullPath = Path.Combine(predictionDir, filePath);
+
+            // 디렉토리 트래버설 방지를 위한 추가 검증
+            if (!Path.GetFullPath(fullPath).StartsWith(Path.GetFullPath(predictionDir)))
+            {
+                return BadRequest(new { message = "Invalid file path" });
+            }
+
+            if (!System.IO.File.Exists(fullPath))
+            {
+                return NotFound(new { message = "File not found" });
+            }
+
+            // Content-Type 결정
+            var contentType = filePath.ToLower() switch
+            {
+                string s when s.EndsWith(".csv") => "text/csv",
+                string s when s.EndsWith(".tsv") => "text/tab-separated-values",
+                string s when s.EndsWith(".txt") => "text/plain",
+                string s when s.EndsWith(".json") => "application/json",
+                string s when s.EndsWith(".yaml") || s.EndsWith(".yml") => "application/x-yaml",
+                _ => "application/octet-stream"
+            };
+
+            // 파일 스트림 반환
+            var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
+            return File(fileStream, contentType, Path.GetFileName(filePath));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error downloading file {FilePath} for prediction {PredictionId} in scenario {ScenarioId}",
+                filePath, predictionId, scenarioId);
+            return StatusCode(500, new { message = "Error downloading file" });
         }
     }
 }

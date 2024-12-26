@@ -113,7 +113,7 @@ export const DataPage = () => {
             loading={uploading}
           >
             <SlIcon slot="prefix" name="upload" />
-            Upload Datasets
+            Upload Files
           </SlButton>
         </div>
       </div>

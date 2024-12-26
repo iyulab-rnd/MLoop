@@ -9,10 +9,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MLoop", "MLoop\MLoop.csproj
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{CF1D4823-41BE-4D8A-8E64-510D22118C2D}"
 	ProjectSection(SolutionItems) = preProject
+		..\AZURE_OPERATIONS.md = ..\AZURE_OPERATIONS.md
 		..\DEV.md = ..\DEV.md
+		..\MLNET_CLI.txt = ..\MLNET_CLI.txt
 		..\MLNET_PREDICT_CLI.txt = ..\MLNET_PREDICT_CLI.txt
 		..\README.md = ..\README.md
-		..\MLNET_CLI.txt = ..\MLNET_CLI.txt
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "10. Shared", "10. Shared", "{10DB39BA-7B70-4FEC-971E-248CA4F8A7A5}"

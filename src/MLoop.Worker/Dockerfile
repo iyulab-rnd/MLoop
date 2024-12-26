@@ -20,6 +20,7 @@ ENV PATH="$PATH:/tools"
 
 # Set environment variables
 ENV Storage__BasePath="/var/data/mloop"
+ENV ConnectionStrings__QueueConnection=""
 
 # Create necessary directories and set permissions
 RUN mkdir -p /var/data/mloop /.nuget/NuGet \

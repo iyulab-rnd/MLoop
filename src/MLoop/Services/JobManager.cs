@@ -1,6 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Azure.Storage.Queues;
+using Microsoft.Extensions.Logging;
 using MLoop.Models.Jobs;
 using MLoop.Storages;
+using System.Text;
+using Microsoft.Extensions.Configuration;
 
 namespace MLoop.Services;
 
@@ -8,12 +11,92 @@ public class JobManager
 {
     private readonly IFileStorage _storage;
     private readonly ILogger<JobManager> _logger;
+    private readonly QueueServiceClient? _queueServiceClient;
+    private QueueClient? _scalingQueue;
     private const string JobResultFileName = "result.json";
 
-    public JobManager(IFileStorage storage, ILogger<JobManager> logger)
+    public JobManager(
+        IFileStorage storage,
+        ILogger<JobManager> logger,
+        IConfiguration configuration)
     {
         _storage = storage;
         _logger = logger;
+
+        // Scaling Queue 초기화 (선택적)
+        var queueConnection = configuration.GetConnectionString("QueueConnection");
+        var queueName = configuration["Queue:ScalingQueueName"] ?? "mloop-scaling-queue";
+
+        if (!string.IsNullOrEmpty(queueConnection))
+        {
+            _queueServiceClient = new QueueServiceClient(queueConnection);
+            _scalingQueue = _queueServiceClient.GetQueueClient(queueName);
+            _scalingQueue.Create(); // 동기식 호출 사용
+        }
+    }
+
+    private async Task SendScalingNotificationAsync(MLJob job)
+    {
+        if (_scalingQueue == null) return;
+
+        try
+        {
+            // 메시지 생성
+            var message = Convert.ToBase64String(
+                Encoding.UTF8.GetBytes(JsonHelper.Serialize(new
+                {
+                    job.JobId,
+                    job.ScenarioId,
+                    Timestamp = DateTime.UtcNow
+                }))
+            );
+
+            // 메시지 전송
+            var response = await _scalingQueue.SendMessageAsync(message,
+                visibilityTimeout: TimeSpan.FromSeconds(30),
+                timeToLive: TimeSpan.FromMinutes(1));
+
+            _logger.LogInformation(
+                "Sent scaling notification for job {JobId}",
+                job.JobId);
+        }
+        catch (Exception ex)
+        {
+            // Scaling 통지 실패는 무시
+            _logger.LogWarning(ex,
+                "Failed to send scaling notification for job {JobId}",
+                job.JobId);
+        }
+    }
+
+    public async Task SaveJobStatusAsync(MLJob job)
+    {
+        try
+        {
+            var path = _storage.GetJobPath(job.ScenarioId, job.JobId);
+            var directory = Path.GetDirectoryName(path)!;
+            Directory.CreateDirectory(directory);
+
+            var json = JsonHelper.Serialize(job);
+            await File.WriteAllTextAsync(path, json);
+
+            // Waiting 상태의 새 작업인 경우 scaling 통지
+            if (job.Status == MLJobStatus.Waiting)
+            {
+                await SendScalingNotificationAsync(job);
+            }
+
+            _logger.LogInformation(
+                "Saved job status for scenarioId: {ScenarioId}, jobId: {JobId}",
+                job.ScenarioId, job.JobId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error saving job status for scenarioId: {ScenarioId}, jobId: {JobId}",
+                job.ScenarioId, job.JobId);
+            throw;
+        }
     }
 
     private static string GenerateModelId()
@@ -125,29 +208,6 @@ public class JobManager
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting jobs for scenario {ScenarioId}", scenarioId);
-            throw;
-        }
-    }
-
-    public async Task SaveJobStatusAsync(MLJob job)
-    {
-        try
-        {
-            var path = _storage.GetJobPath(job.ScenarioId, job.JobId);
-            var directory = Path.GetDirectoryName(path)!;
-
-            Directory.CreateDirectory(directory);
-
-            var json = JsonHelper.Serialize(job);
-            await File.WriteAllTextAsync(path, json);
-
-            _logger.LogInformation("Saved job status for scenarioId: {ScenarioId}, jobId: {JobId}",
-                job.ScenarioId, job.JobId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error saving job status for scenarioId: {ScenarioId}, jobId: {JobId}",
-                job.ScenarioId, job.JobId);
             throw;
         }
     }
