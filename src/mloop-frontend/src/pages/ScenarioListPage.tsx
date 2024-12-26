@@ -3,9 +3,9 @@ import { useScenarios } from "../hooks/scenarios/useScenarios";
 import { ScenarioCard } from "../components/scenarios/ScenarioCard";
 import { ScenarioSearch } from "../components/scenarios/ScenarioSearch";
 import { AddScenarioCard } from "../components/scenarios/AddScenarioCard";
-import { Scenario } from "../types/scenarios";
+import { Scenario } from "../types/Scenario";
 
-export const ScenariosPage = () => {
+export const ScenarioListPage = () => {
   const { scenarios, searchTerm, setSearchTerm, loading, error } =
     useScenarios();
   const navigate = useNavigate();

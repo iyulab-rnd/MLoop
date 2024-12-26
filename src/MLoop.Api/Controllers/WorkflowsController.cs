@@ -7,7 +7,7 @@ using MLoop.Models.Workflows;
 namespace MLoop.Api.Controllers;
 
 [ApiController]
-[Route("scenarios/{scenarioId}/workflows")]
+[Route("/api/scenarios/{scenarioId}/workflows")]
 public class WorkflowController : ControllerBase
 {
     private readonly IFileStorage _storage;
@@ -53,7 +53,7 @@ public class WorkflowController : ControllerBase
 
             if (!System.IO.File.Exists(workflowPath))
             {
-                return NotFound($"{workflowType} workflow not found for scenario {scenarioId}");
+                return NoContent();
             }
 
             var yamlContent = await System.IO.File.ReadAllTextAsync(workflowPath);

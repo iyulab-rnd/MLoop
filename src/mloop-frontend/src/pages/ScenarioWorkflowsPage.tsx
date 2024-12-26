@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import { 
@@ -9,7 +9,8 @@ import {
   SlTabGroup,
   SlTabPanel,
 } from '@shoelace-style/shoelace/dist/react';
-import { Scenario } from '../types/scenarios';
+import { Scenario } from '../types/Scenario';
+import { scenarioApi } from '../api/scenarios';
 
 type ScenarioContextType = {
   scenario: Scenario;
@@ -45,22 +46,28 @@ export const ScenarioWorkflowsPage = () => {
   useEffect(() => {
     const fetchWorkflows = async () => {
       try {
-        const trainResponse = await fetch(`/api/scenarios/${scenario.scenarioId}/workflows/train`);
-        if (trainResponse.ok) {
-          const trainData = await trainResponse.text();
+        setLoading(true);
+        setError(null);
+  
+        // Fetch train workflow
+        const trainData = await scenarioApi.getWorkflow(scenario.scenarioId, 'train');
+        if (trainData) {
           setTrainConfig(trainData);
         }
-
-        const predictResponse = await fetch(`/api/scenarios/${scenario.scenarioId}/workflows/predict`);
-        if (predictResponse.ok) {
-          const predictData = await predictResponse.text();
+  
+        // Fetch predict workflow
+        const predictData = await scenarioApi.getWorkflow(scenario.scenarioId, 'predict');
+        if (predictData) {
           setPredictConfig(predictData);
         }
       } catch (err) {
         console.error('Error loading workflows:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load workflows');
+      } finally {
+        setLoading(false);
       }
     };
-
+  
     fetchWorkflows();
   }, [scenario.scenarioId]);
 
@@ -70,21 +77,33 @@ export const ScenarioWorkflowsPage = () => {
     
     try {
       const config = type === 'train' ? trainConfig : predictConfig;
+      
+      // YAML 유효성 검증
+      try {
+        const jsyaml = await import('js-yaml');
+        jsyaml.load(config);
+      } catch (yamlError) {
+        throw new Error(`Invalid YAML format: ${yamlError instanceof Error ? yamlError.message : 'Unknown error'}`);
+      }
+  
+      // YAML 문자열을 그대로 전송
       const response = await fetch(`/api/scenarios/${scenario.scenarioId}/workflows/${type}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'text/yaml',
         },
-        body: config,
+        body: config, // YAML 문자열을 직접 전송
       });
-
+  
       if (!response.ok) {
-        throw new Error(`Failed to update ${type} workflow`);
+        const errorData = await response.text();
+        throw new Error(errorData || `Failed to update ${type} workflow`);
       }
-
+  
       setSuccessMessage(`${type.charAt(0).toUpperCase() + type.slice(1)} workflow updated successfully`);
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
+      console.error('Error saving workflow:', err);
       setError(err instanceof Error ? err.message : `Failed to update ${type} workflow`);
     } finally {
       setLoading(false);
@@ -205,5 +224,3 @@ export const ScenarioWorkflowsPage = () => {
     </div>
   );
 };
-
-export default ScenarioWorkflowsPage;

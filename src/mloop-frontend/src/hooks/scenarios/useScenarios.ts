@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Scenario } from '../../types/scenarios';
-import { fetchScenarios } from '../../api/scenarios';
+import { useNotification } from '../../contexts/NotificationContext';
+import { Scenario } from '../../types/Scenario';
+import { scenarioApi } from '../../api/scenarios';
 
 export const useScenarios = () => {
+  const { showNotification } = useNotification();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -13,19 +15,21 @@ export const useScenarios = () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await fetchScenarios({ searchTerm });
+        const data = await scenarioApi.list({ searchTerm });
         setScenarios(data);
       } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch scenarios';
         console.error('Error in useScenarios:', err);
-        setError(err instanceof Error ? err : new Error('An error occurred while fetching scenarios'));
-        setScenarios([]); // 에러 시 scenarios 초기화
+        showNotification('danger', errorMessage);
+        setError(err instanceof Error ? err : new Error(errorMessage));
+        setScenarios([]);
       } finally {
         setLoading(false);
       }
     };
 
     loadScenarios();
-  }, [searchTerm]);
+  }, [searchTerm, showNotification]);
 
   return {
     scenarios,

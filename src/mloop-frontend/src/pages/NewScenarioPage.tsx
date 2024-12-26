@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ScenarioForm, ScenarioFormData } from '../components/scenarios/ScenarioForm';
+import { scenarioApi } from '../api/scenarios';
+import { useNotification } from '../contexts/NotificationContext';
 
 export const NewScenarioPage = () => {
   const navigate = useNavigate();
+  const { showNotification } = useNotification();
   const [formData, setFormData] = useState<ScenarioFormData>({
     name: '',
     mlType: '',
@@ -15,8 +18,21 @@ export const NewScenarioPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.mlType.trim() || !formData.description.trim()) {
-      setError('Name, ML Type, and Description are required');
+    
+    // Validate required fields
+    const errors = [];
+    if (!formData.name.trim()) {
+      errors.push('Name is required');
+    }
+    if (!formData.mlType.trim()) {
+      errors.push('ML Type is required');
+    }
+    if (formData.tags.length === 0) {
+      errors.push('At least one tag is required');
+    }
+
+    if (errors.length > 0) {
+      setError(errors.join(', '));
       return;
     }
 
@@ -24,27 +40,19 @@ export const NewScenarioPage = () => {
     setError(null);
 
     try {
-      const response = await fetch('/api/scenarios', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          mlType: formData.mlType.trim(),
-          description: formData.description.trim(),
-          tags: formData.tags,
-        }),
+      await scenarioApi.create({
+        name: formData.name.trim(),
+        mlType: formData.mlType.trim(),
+        description: formData.description,
+        tags: formData.tags,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Failed to create scenario');
-      }
-
+      showNotification('success', 'Scenario created successfully');
       navigate('/scenarios');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create scenario';
+      setError(errorMessage);
+      showNotification('danger', errorMessage);
     } finally {
       setIsSubmitting(false);
     }

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation, Routes, Route, Link } from 'react-router-dom';
-import { SlButton, SlIcon, SlTag } from '@shoelace-style/shoelace/dist/react';
-import { Scenario } from '../types/scenarios';
-import { ScenarioDataPage } from './ScenarioDataPage';
-import { ScenarioJobsPage } from './ScenarioJobsPage';
-import { ScenarioModelsPage } from './ScenarioModelsPage';
+import { useParams, useNavigate, useLocation, Link, Routes, Route } from 'react-router-dom';
+import { SlButton, SlIcon, SlTag, SlAlert } from '@shoelace-style/shoelace/dist/react';
+import { Scenario } from '../types/Scenario';
+import { scenarioApi } from '../api/scenarios';
+import { useNotification } from '../contexts/NotificationContext';
+import { DataPage } from './DataPage';
+import { JobListPage } from './JobListPage';
 import { ScenarioWorkflowsPage } from './ScenarioWorkflowsPage';
+import { MLModelListPage } from './MLModelListPage';
 
 const TabItem = ({ to, current, children }: { to: string; current: boolean; children: React.ReactNode }) => (
   <Link
@@ -38,29 +40,28 @@ export const ScenarioDetailPage = () => {
   const { scenarioId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { showNotification } = useNotification();
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchScenario = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/scenarios/${scenarioId}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch scenario');
-        }
-        const data = await response.json();
+        const data = await scenarioApi.get(scenarioId!);
         setScenario(data);
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('An error occurred'));
+        const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+        setError(errorMessage);
+        showNotification('danger', errorMessage);
       } finally {
         setLoading(false);
       }
     };
 
     fetchScenario();
-  }, [scenarioId]);
+  }, [scenarioId, scenarioApi, showNotification]);
 
   if (loading) {
     return (
@@ -73,9 +74,9 @@ export const ScenarioDetailPage = () => {
   if (error) {
     return (
       <div className="max-w-[800px] mx-auto px-8 py-12">
-        <div className="p-4 bg-red-50 text-red-600 rounded-lg text-center">
-          {error.message}
-        </div>
+        <SlAlert variant="danger" className="text-center">
+          {error}
+        </SlAlert>
       </div>
     );
   }
@@ -83,9 +84,9 @@ export const ScenarioDetailPage = () => {
   if (!scenario) {
     return (
       <div className="max-w-[800px] mx-auto px-8 py-12">
-        <div className="p-4 bg-yellow-50 text-yellow-600 rounded-lg text-center">
+        <SlAlert variant="warning" className="text-center">
           Scenario not found
-        </div>
+        </SlAlert>
       </div>
     );
   }
@@ -118,6 +119,12 @@ export const ScenarioDetailPage = () => {
                       month: 'long',
                       day: 'numeric'
                     })}
+                  </span>
+                </div>
+                {/* ML Type Badge */}
+                <div className="mb-3">
+                  <span className="px-3 py-1 text-sm font-medium rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    {scenario.mlType}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -154,9 +161,9 @@ export const ScenarioDetailPage = () => {
           {/* Tab Content */}
           <Routes>
             <Route index element={<ScenarioOverview scenario={scenario} />} />
-            <Route path="data" element={<ScenarioDataPage />} />
-            <Route path="jobs" element={<ScenarioJobsPage />} />
-            <Route path="models" element={<ScenarioModelsPage />} />
+            <Route path="data" element={<DataPage />} />
+            <Route path="jobs" element={<JobListPage />} />
+            <Route path="models" element={<MLModelListPage />} />
             <Route path="workflows" element={<ScenarioWorkflowsPage />} />
           </Routes>
         </div>

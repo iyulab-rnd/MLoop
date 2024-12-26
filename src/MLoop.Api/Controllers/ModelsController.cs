@@ -6,7 +6,7 @@ using MLoop.Storages;
 namespace MLoop.Api.Controllers;
 
 [ApiController]
-[Route("scenarios/{scenarioId}/models")]
+[Route("/api/scenarios/{scenarioId}/models")]
 public class ModelsController : ControllerBase
 {
     private readonly ModelService _modelService;

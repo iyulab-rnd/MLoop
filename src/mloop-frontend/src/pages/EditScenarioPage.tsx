@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ScenarioForm, ScenarioFormData } from '../components/scenarios/ScenarioForm';
-import { Scenario } from '../types/scenarios';
+import { scenarioApi } from '../api/scenarios';
+import { useNotification } from '../contexts/NotificationContext';
 
 export const EditScenarioPage = () => {
   const navigate = useNavigate();
   const { scenarioId } = useParams();
+  const { showNotification } = useNotification();
   const [formData, setFormData] = useState<ScenarioFormData>({
     name: '',
     mlType: '',
@@ -16,15 +18,14 @@ export const EditScenarioPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 기존 시나리오 데이터 로드
   useEffect(() => {
     const fetchScenario = async () => {
       try {
-        const response = await fetch(`/api/scenarios/${scenarioId}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch scenario');
+        setLoading(true);
+        if (!scenarioId) {
+          throw new Error('Scenario ID is required');
         }
-        const data: Scenario = await response.json();
+        const data = await scenarioApi.get(scenarioId);
         setFormData({
           name: data.name,
           mlType: data.mlType,
@@ -32,19 +33,39 @@ export const EditScenarioPage = () => {
           tags: data.tags
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load scenario');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load scenario';
+        setError(errorMessage);
+        showNotification('danger', errorMessage);
       } finally {
         setLoading(false);
       }
     };
 
     fetchScenario();
-  }, [scenarioId]);
+  }, [scenarioId, showNotification]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.mlType.trim() || !formData.description.trim()) {
-      setError('Name, ML Type, and Description are required');
+    
+    // Validate required fields
+    const errors = [];
+    if (!formData.name.trim()) {
+      errors.push('Name is required');
+    }
+    if (!formData.mlType.trim()) {
+      errors.push('ML Type is required');
+    }
+    if (formData.tags.length === 0) {
+      errors.push('At least one tag is required');
+    }
+
+    if (errors.length > 0) {
+      setError(errors.join(', '));
+      return;
+    }
+
+    if (!scenarioId) {
+      showNotification('danger', 'Scenario ID is required');
       return;
     }
 
@@ -52,27 +73,19 @@ export const EditScenarioPage = () => {
     setError(null);
 
     try {
-      const response = await fetch(`/api/scenarios/${scenarioId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          mlType: formData.mlType.trim(),
-          description: formData.description.trim(),
-          tags: formData.tags,
-        }),
+      await scenarioApi.update(scenarioId, {
+        name: formData.name.trim(),
+        mlType: formData.mlType.trim(),
+        description: formData.description,
+        tags: formData.tags,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Failed to update scenario');
-      }
-
+      showNotification('success', 'Scenario updated successfully');
       navigate(`/scenarios/${scenarioId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update scenario';
+      setError(errorMessage);
+      showNotification('danger', errorMessage);
     } finally {
       setIsSubmitting(false);
     }

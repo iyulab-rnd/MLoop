@@ -1,7 +1,7 @@
-# @host = https://localhost:7102
-@host = https://mloop.iyulab.com
+@host = https://localhost:7102
+# @host = https://mloop.iyulab.com
 
-@scenarioId = 262c66c3f8064b938ba4d6b253a5ab46
+@scenarioId = 55345c2cdbc444c9b4ae6b2a6c9d3277
 @jobId = 8cb84a1ef39244a8a50809803c61e24a
 @modelId = m20241222171046
 @predictionId = 2acc96029b784af9b2e2c769c63b6c2b
@@ -9,7 +9,7 @@
 # < D:\data\MLoop\files\GitHubIssueClassification\issues_train.tsv
 
 ### 시나리오 조회
-GET {{host}}/scenarios
+GET {{host}}/api/scenarios
 
 #### Response: HTTP/1.1 200 OK
 # content-type: application/json; charset=utf-8
@@ -29,19 +29,19 @@ GET {{host}}/scenarios
 # ]
 
 ###  시나리오 조회 (Name)
-GET {{host}}/scenarios?$filter=contains(name,'GitHub') and mlType eq 'classification'
+GET {{host}}/api/scenarios?$filter=contains(name,'GitHub') and mlType eq 'classification'
 
 ### 시나리오 조회 (ML Type)
-GET {{host}}/scenarios?$filter=mlType eq 'classification'
+GET {{host}}/api/scenarios?$filter=mlType eq 'classification'
 
 ### 시나리오 조회 (최신순)
-GET {{host}}/scenarios?$orderby=createdAt desc
+GET {{host}}/api/scenarios?$orderby=createdAt desc
 
 ### 시나리오 조회 (Tags)
-GET {{host}}/scenarios?$filter=tags/any(t: t eq 'github')
+GET {{host}}/api/scenarios?$filter=tags/any(t: t eq 'github')
 
 ### Create a new scenario
-POST {{host}}/scenarios
+POST {{host}}/api/scenarios
 Content-Type: application/json
 
 {
@@ -66,7 +66,7 @@ Content-Type: application/json
 # }
 
 ### 데이터 조회
-GET {{host}}/scenarios/{{scenarioId}}/data
+GET {{host}}/api/scenarios/{{scenarioId}}/data
 
 #### Response: HTTP/1.1 200 OK
 # content-type: application/json; charset=utf-8
@@ -87,7 +87,7 @@ GET {{host}}/scenarios/{{scenarioId}}/data
 # ]
 
 ### Upload training data
-POST {{host}}/scenarios/{{scenarioId}}/data
+POST {{host}}/api/scenarios/{{scenarioId}}/data
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
 ------WebKitFormBoundary7MA4YWxkTrZu0gW
@@ -107,11 +107,11 @@ Content-Type: text/tab-separated-values
 # }
 
 ### Upload test data
-POST {{host}}/scenarios/{{scenarioId}}/data
+POST {{host}}/api/scenarios/{{scenarioId}}/data
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
 ------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="file"; filename="issues_test.tsv"
+Content-Disposition: form-data; name="files"; filename="issues_test.tsv"
 Content-Type: text/tab-separated-values
 
 < D:\data\MLoop\files\GitHubIssueClassification\issues_test.tsv
@@ -120,14 +120,29 @@ Content-Type: text/tab-separated-values
 #### Response: HTTP/1.1 200 OK
 # content-type: application/json; charset=utf-8
 
+# [
+#   {
+#     "fileName": "issues_test.tsv",
+#     "size": 4497246,
+#     "path": "issues_test.tsv"
+#   }
+# ]
+
+### Delete data
+DELETE {{host}}/api/scenarios/{{scenarioId}}/data/issues_test.tsv
+
+#### Response: HTTP/1.1 200 OK
+# content-type: application/json; charset=utf-8
+
 # {
-#   "fileName": "issues_test.tsv",
-#   "size": 4497246,
-#   "path": "issues_test.tsv"
+#   "message": "File deleted successfully"
 # }
 
+### GET train workflow
+GET {{host}}/api/scenarios/{{scenarioId}}/workflows/train
+
 ### Update train workflow
-POST {{host}}/scenarios/{{scenarioId}}/workflows/train
+POST {{host}}/api/scenarios/{{scenarioId}}/workflows/train
 Content-Type: text/yaml
 
 steps:
@@ -155,7 +170,7 @@ steps:
 # }
         
 ### Start training
-POST {{host}}/scenarios/{{scenarioId}}/train
+POST {{host}}/api/scenarios/{{scenarioId}}/train
 
 #### Response: HTTP/1.1 200 OK
 # content-type: application/json; charset=utf-8
@@ -166,7 +181,7 @@ POST {{host}}/scenarios/{{scenarioId}}/train
 # }
 
 ### GET Jobs
-GET {{host}}/scenarios/{{scenarioId}}/jobs
+GET {{host}}/api/scenarios/{{scenarioId}}/jobs
 
 #### Response: HTTP/1.1 200 OK
 # content-type: application/json; charset=utf-8
@@ -194,7 +209,7 @@ GET {{host}}/scenarios/{{scenarioId}}/jobs
 # ]
 
 ### GET Job
-GET {{host}}/scenarios/{{scenarioId}}/jobs/{{jobId}}
+GET {{host}}/api/scenarios/{{scenarioId}}/jobs/{{jobId}}
 
 #### Response: HTTP/1.1 200 OK
 # content-type: application/json; charset=utf-8
@@ -220,10 +235,10 @@ GET {{host}}/scenarios/{{scenarioId}}/jobs/{{jobId}}
 # }
 
 ### Cancel Job
-POST {{host}}/scenarios/{{scenarioId}}/jobs/{{jobId}}/cancel
+POST {{host}}/api/scenarios/{{scenarioId}}/jobs/{{jobId}}/cancel
 
 ### GET Job Logs
-GET {{host}}/scenarios/{{scenarioId}}/jobs/{{jobId}}/logs
+GET {{host}}/api/scenarios/{{scenarioId}}/jobs/{{jobId}}/logs
 
 #### Response: HTTP/1.1 200 OK
 # content-type: text/plain; charset=utf-8
@@ -236,7 +251,7 @@ GET {{host}}/scenarios/{{scenarioId}}/jobs/{{jobId}}/logs
 # ....
 
 ### GET Models
-GET {{host}}/scenarios/{{scenarioId}}/models
+GET {{host}}/api/scenarios/{{scenarioId}}/models
 
 #### Response: HTTP/1.1 200 OK
 # content-type: application/json; charset=utf-8
@@ -284,7 +299,7 @@ GET {{host}}/scenarios/{{scenarioId}}/models
 
 
 ### GET Model
-GET {{host}}/scenarios/{{scenarioId}}/models/{{modelId}}
+GET {{host}}/api/scenarios/{{scenarioId}}/models/{{modelId}}
 
 #### Response: HTTP/1.1 200 OK
 # content-type: application/json; charset=utf-8
@@ -303,7 +318,7 @@ GET {{host}}/scenarios/{{scenarioId}}/models/{{modelId}}
 # }
 
 ### GET Model Train Logs (train.log)
-GET {{host}}/scenarios/{{scenarioId}}/models/{{modelId}}/logs/train
+GET {{host}}/api/scenarios/{{scenarioId}}/models/{{modelId}}/logs/train
 
 #### Response: HTTP/1.1 200 OK
 # content-type: text/plain; charset=utf-8
@@ -314,7 +329,7 @@ GET {{host}}/scenarios/{{scenarioId}}/models/{{modelId}}/logs/train
 # ...
 
 ### GET Model Metrics (metrics.json)
-GET {{host}}/scenarios/{{scenarioId}}/models/{{modelId}}/metrics
+GET {{host}}/api/scenarios/{{scenarioId}}/models/{{modelId}}/metrics
 
 #### Response: HTTP/1.1 200 OK
 # content-type: application/json; charset=utf-8
@@ -338,7 +353,7 @@ GET {{host}}/scenarios/{{scenarioId}}/models/{{modelId}}/metrics
 # }
 
 ### GET Best Model
-GET {{host}}/scenarios/{{scenarioId}}/models/best-model
+GET {{host}}/api/scenarios/{{scenarioId}}/models/best-model
 
 #### Response: HTTP/1.1 200 OK
 # content-type: application/json; charset=utf-8
@@ -357,7 +372,7 @@ GET {{host}}/scenarios/{{scenarioId}}/models/best-model
 # }
 
 ### POST Cleanup Jobs - 완료된 작업을 모두 제거 (.json, .log, _result.json)
-POST {{host}}/scenarios/{{scenarioId}}/jobs/cleanup
+POST {{host}}/api/scenarios/{{scenarioId}}/jobs/cleanup
 
 #### Response: HTTP/1.1 200 OK
 # content-type: application/json; charset=utf-8
@@ -368,7 +383,7 @@ POST {{host}}/scenarios/{{scenarioId}}/jobs/cleanup
 # }
 
 ### POST Cleanup Models - Best Model 이 아닌 모델을 모두 제거
-POST {{host}}/scenarios/{{scenarioId}}/models/cleanup
+POST {{host}}/api/scenarios/{{scenarioId}}/models/cleanup
 
 #### Response: HTTP/1.1 200 OK
 # content-type: application/json; charset=utf-8
@@ -378,7 +393,7 @@ POST {{host}}/scenarios/{{scenarioId}}/models/cleanup
 # }
 
 ### POST Cleanup Predictions - 완료된 예측을 모두 제거
-POST {{host}}/scenarios/{{scenarioId}}/predictions/cleanup
+POST {{host}}/api/scenarios/{{scenarioId}}/predictions/cleanup
 
 #### Response: HTTP/1.1 200 OK
 # content-type: application/json; charset=utf-8
@@ -389,7 +404,7 @@ POST {{host}}/scenarios/{{scenarioId}}/predictions/cleanup
 # }
 
 ### POST Predict - Best Model 에 의한 예측 실행
-POST {{host}}/scenarios/{{scenarioId}}/predict
+POST {{host}}/api/scenarios/{{scenarioId}}/predict
 Content-Type: text/tab-separated-values
 
 Area	Title	Description
@@ -401,7 +416,7 @@ Python Programming	How to Handle Large JSON Files Efficiently in Python?	I'm wor
 # }
 
 ### GET Prediction Result (result.csv)
-GET {{host}}/scenarios/{{scenarioId}}/predictions/{{predictionId}}
+GET {{host}}/api/scenarios/{{scenarioId}}/predictions/{{predictionId}}
 
 #### 200: OK - 예측 실행중...
 # HTTP/1.1 200 OK

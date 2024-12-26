@@ -77,7 +77,7 @@ export const ScenarioForm: React.FC<ScenarioFormProps> = ({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Scenario Name
+          Scenario Name <span className="text-red-500">*</span>
         </label>
         <SlInput
           required
@@ -90,7 +90,7 @@ export const ScenarioForm: React.FC<ScenarioFormProps> = ({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          ML Type
+          ML Type <span className="text-red-500">*</span>
         </label>
         <SlSelect
           required
@@ -112,24 +112,26 @@ export const ScenarioForm: React.FC<ScenarioFormProps> = ({
           Description
         </label>
         <SlTextarea
-          required
           className="w-full"
           value={formData.description}
           onSlInput={handleInputChange('description')}
-          placeholder="Enter a detailed description..."
+          placeholder="Enter a detailed description (optional)..."
           rows={4}
         />
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Tags
+          Tags <span className="text-red-500">*</span>
         </label>
         <TagInput
           tags={formData.tags}
           setTags={handleTagsChange}
           placeholder="Type tag and press Enter..."
         />
+        {formData.tags.length === 0 && (
+          <p className="mt-1 text-sm text-gray-500">At least one tag is required</p>
+        )}
       </div>
 
       <div className="flex justify-end gap-4">

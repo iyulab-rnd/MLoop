@@ -6,7 +6,7 @@ using MLoop.Storages;
 namespace MLoop.Api.Controllers;
 
 [ApiController]
-[Route("scenarios/{scenarioId}/jobs")]
+[Route("/api/scenarios/{scenarioId}/jobs")]
 public class JobsController : ControllerBase
 {
     private readonly JobService _jobService;
@@ -81,7 +81,7 @@ public class JobsController : ControllerBase
         {
             var logs = await _jobService.GetJobLogsAsync(scenarioId, jobId);
             if (logs == null)
-                return NotFound();
+                return NoContent();
             return Ok(logs);
         }
         catch (Exception ex)

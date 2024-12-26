@@ -1,5 +1,5 @@
 import { useOutletContext } from 'react-router-dom';
-import { Scenario } from '../types/scenarios';
+import { Scenario } from '../types/Scenario';
 
 type ScenarioContextType = {
   scenario: Scenario;

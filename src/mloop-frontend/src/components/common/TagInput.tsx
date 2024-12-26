@@ -1,4 +1,3 @@
-// src/components/common/TagInput.tsx
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { SlInput, SlTag } from '@shoelace-style/shoelace/dist/react';
 

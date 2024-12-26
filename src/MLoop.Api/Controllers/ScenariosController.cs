@@ -4,21 +4,25 @@ using Microsoft.AspNetCore.OData.Query;
 using MLoop.Api.Models;
 using MLoop.Api.Services;
 using MLoop.Models;
+using MLoop.Storages;
 
 namespace MLoop.Api.Controllers;
 
 [ApiController]
-[Route("[controller]")]
+[Route("/api/[controller]")]
 public class ScenariosController : ControllerBase
 {
     private readonly ScenarioService _scenarioService;
+    private readonly IFileStorage _storage;
     private readonly ILogger<ScenariosController> _logger;
 
     public ScenariosController(
         ScenarioService scenarioService,
+        IFileStorage storage,
         ILogger<ScenariosController> logger)
     {
         _scenarioService = scenarioService;
+        _storage = storage;
         _logger = logger;
     }
 
@@ -140,6 +144,13 @@ public class ScenariosController : ControllerBase
     {
         try
         {
+            // 필수 조건 검증
+            var validationResult = await ValidateTrainingPrerequisites(scenarioId);
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(validationResult.ErrorMessage);
+            }
+
             var scenario = await _scenarioService.GetScenarioAsync(scenarioId);
             if (scenario == null)
                 return NotFound("Scenario not found");
@@ -152,5 +163,42 @@ public class ScenariosController : ControllerBase
             _logger.LogError(ex, "Error creating train job for scenario {ScenarioId}", scenarioId);
             return BadRequest(ex.Message);
         }
+    }
+
+    private async Task<RequestValidationResult> ValidateTrainingPrerequisites(string scenarioId)
+    {
+        var scenarioBaseDir = _storage.GetScenarioBaseDir(scenarioId);
+
+        // 데이터 파일 존재 여부 확인
+        var dataDir = Path.Combine(scenarioBaseDir, "data");
+        if (!Directory.Exists(dataDir) || !Directory.EnumerateFiles(dataDir).Any())
+        {
+            return RequestValidationResult.Fail("No data files found. Please upload data files before starting training.");
+        }
+
+        // train.yaml 파일 존재 여부 확인
+        var workflowsDir = Path.Combine(scenarioBaseDir, "workflows");
+        var trainWorkflowPath = Path.Combine(workflowsDir, "train.yaml");
+        if (!System.IO.File.Exists(trainWorkflowPath))
+        {
+            return RequestValidationResult.Fail("Training workflow (train.yaml) not found. Please create training workflow first.");
+        }
+
+        // train.yaml 파일 내용 검증
+        try
+        {
+            var yamlContent = await System.IO.File.ReadAllTextAsync(trainWorkflowPath);
+            if (string.IsNullOrWhiteSpace(yamlContent))
+            {
+                return RequestValidationResult.Fail("Training workflow file is empty.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error reading training workflow file for scenario {ScenarioId}", scenarioId);
+            return RequestValidationResult.Fail("Error reading training workflow file.");
+        }
+
+        return RequestValidationResult.Success();
     }
 }

@@ -6,7 +6,7 @@ using MLoop.Storages;
 namespace MLoop.Api.Controllers;
 
 [ApiController]
-[Route("scenarios/{scenarioId}/predictions")]
+[Route("/api/scenarios/{scenarioId}/predictions")]
 public class PredictionsController : ControllerBase
 {
     private readonly IFileStorage _storage;
@@ -28,6 +28,7 @@ public class PredictionsController : ControllerBase
 
     [HttpPost]
     [Route("/scenarios/{scenarioId}/predict")]
+    [Route("/scenarios/{scenarioId}/models/{modelId}/predict")]
     public async Task<IActionResult> Predict(
         string scenarioId,
         [FromBody] string content,

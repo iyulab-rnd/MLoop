@@ -1,5 +1,5 @@
 import { SlCard } from "@shoelace-style/shoelace/dist/react";
-import { Scenario } from "../../types/scenarios";
+import { Scenario } from "../../types";
 
 interface ScenarioCardProps {
   scenario: Scenario;

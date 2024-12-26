@@ -1,26 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { SlButton, SlIcon, SlAlert } from '@shoelace-style/shoelace/dist/react';
-import { Scenario } from '../types/scenarios';
-
-interface DataFile {
-  name: string;
-  path: string;
-  size: number;
-  lastModified: string;
-}
+import { SlButton, SlIcon } from '@shoelace-style/shoelace/dist/react';
+import { Scenario } from '../types/Scenario';
+import { DataFile } from '../types/DataFile';
+import { scenarioApi } from '../api/scenarios';
+import { useNotification } from '../contexts/NotificationContext';
 
 type ScenarioContextType = {
   scenario: Scenario;
 };
 
-export const ScenarioDataPage = () => {
+export const DataPage = () => {
+  const { showNotification } = useNotification();
   const { scenario } = useOutletContext<ScenarioContextType>();
   const [files, setFiles] = useState<DataFile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchFiles();
@@ -29,64 +24,51 @@ export const ScenarioDataPage = () => {
   const fetchFiles = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/scenarios/${scenario.scenarioId}/data`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch files');
-      }
-      const data = await response.json();
+      const data = await scenarioApi.listFiles(scenario.scenarioId);
       setFiles(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load files');
+    } catch (error) {
+      showNotification('danger', error instanceof Error ? error.message : 'Failed to fetch files');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    setError(null);
-    
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await fetch(`/api/scenarios/${scenario.scenarioId}/data`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload file');
+  const handleFilesUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = event.target.files;
+    if (!selectedFiles || selectedFiles.length === 0) return;
+  
+    // 파일 크기 제한
+    const MAX_SIZE = 200 * 1024 * 1024; // 200MB
+    for (let file of selectedFiles) {
+      if (file.size > MAX_SIZE) {
+        showNotification('danger', `File ${file.name} exceeds the maximum size of 10MB`);
+        return;
       }
-
+    }
+  
+    setUploading(true);
+    
+    try {
+      await scenarioApi.uploadFiles(scenario.scenarioId, Array.from(selectedFiles));
       await fetchFiles();
-      setSuccessMessage('File uploaded successfully');
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to upload file');
+      showNotification('success', `${selectedFiles.length} file(s) uploaded successfully`);
+    } catch (error) {
+      showNotification('danger', error instanceof Error ? error.message : 'Failed to upload files');
     } finally {
       setUploading(false);
+      // 동일한 파일을 다시 업로드할 수 있도록 입력 값을 초기화합니다.
+      event.target.value = '';
     }
   };
+  
 
   const handleDelete = async (fileName: string) => {
     try {
-      const response = await fetch(`/api/scenarios/${scenario.scenarioId}/data/${fileName}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete file');
-      }
-
+      await scenarioApi.deleteFile(scenario.scenarioId, fileName);
       await fetchFiles();
-      setSuccessMessage('File deleted successfully');
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete file');
+      showNotification('success', 'File deleted successfully');
+    } catch (error) {
+      showNotification('danger', error instanceof Error ? error.message : 'Failed to delete file');
     }
   };
 
@@ -103,6 +85,14 @@ export const ScenarioDataPage = () => {
     return `${size.toFixed(1)} ${units[unitIndex]}`;
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       <div className="mb-6 flex justify-between items-center">
@@ -112,7 +102,9 @@ export const ScenarioDataPage = () => {
             type="file"
             id="fileUpload"
             className="hidden"
-            onChange={handleFileUpload}
+            onChange={handleFilesUpload}
+            multiple
+            accept=".tsv, .csv, .xlsx" // 필요한 파일 형식을 추가
             disabled={uploading}
           />
           <SlButton
@@ -121,28 +113,12 @@ export const ScenarioDataPage = () => {
             loading={uploading}
           >
             <SlIcon slot="prefix" name="upload" />
-            Upload Dataset
+            Upload Datasets
           </SlButton>
         </div>
       </div>
 
-      {error && (
-        <SlAlert variant="danger" className="mb-4">
-          {error}
-        </SlAlert>
-      )}
-
-      {successMessage && (
-        <SlAlert variant="success" className="mb-4">
-          {successMessage}
-        </SlAlert>
-      )}
-
-      {loading ? (
-        <div className="flex items-center justify-center h-48">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      ) : files.length === 0 ? (
+      {files.length === 0 ? (
         <div className="bg-gray-50 rounded-lg p-8 text-center text-gray-500">
           <p>No datasets available for {scenario.name} yet.</p>
           <p className="mt-2">Click the button above to upload your first dataset.</p>
@@ -200,5 +176,3 @@ export const ScenarioDataPage = () => {
     </div>
   );
 };
-
-export default ScenarioDataPage;
