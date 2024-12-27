@@ -69,5 +69,5 @@ jobs:
           azcliversion: latest
           inlineScript: |
             az config set extension.use_dynamic_install=yes_without_prompt
-            az containerapp registry set -n mloop-worker -g mloop --server ${{ secrets.REGISTRY_LOGIN_SERVER }} --username ${{ secrets.REGISTRY_USERNAME }} --password ${{ secrets.REGISTRY_PASSWORD }}
-            az containerapp update -n mloop-worker -g mloop --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/mloop-worker:${{ env.LATEST_TAG }}
+            az containerapp job registry set -n mloop-worker -g mloop --server ${{ secrets.REGISTRY_LOGIN_SERVER }} --username ${{ secrets.REGISTRY_USERNAME }} --password ${{ secrets.REGISTRY_PASSWORD }}
+            az containerapp job update -n mloop-worker -g mloop --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/mloop-worker:${{ env.LATEST_TAG }}
