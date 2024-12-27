@@ -81,8 +81,55 @@ public class JobManager
             _logger.LogError(ex,
                 "Failed to send scaling notification for waiting job {JobId}. Worker auto-scaling might be affected.",
                 job.JobId);
+        }
+    }
 
-            // 큐 메시지 실패가 작업 생성을 중단시키지 않도록 예외를 다시 던지지 않음
+    private async Task<(string messageId, string popReceipt)?> FindScalingMessageForJobAsync(string jobId)
+    {
+        if (_scalingQueue == null) return null;
+
+        try
+        {
+            // 모든 메시지를 확인하여 해당 작업의 메시지를 찾음
+            var messages = await _scalingQueue.ReceiveMessagesAsync(maxMessages: 32);
+
+            foreach (var message in messages?.Value ?? Array.Empty<Azure.Storage.Queues.Models.QueueMessage>())
+            {
+                var messageContent = Encoding.UTF8.GetString(Convert.FromBase64String(message.MessageText));
+                var scalingMessage = JsonHelper.Deserialize<ScalingMessage>(messageContent);
+
+                if (scalingMessage?.JobId == jobId)
+                {
+                    return (message.MessageId, message.PopReceipt);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error finding scaling message for job {JobId}", jobId);
+        }
+
+        return null;
+    }
+
+    private async Task DeleteScalingMessageForJobAsync(string jobId)
+    {
+        if (_scalingQueue == null) return;
+
+        try
+        {
+            var messageInfo = await FindScalingMessageForJobAsync(jobId);
+            if (messageInfo.HasValue)
+            {
+                await _scalingQueue.DeleteMessageAsync(messageInfo.Value.messageId, messageInfo.Value.popReceipt);
+                _logger.LogInformation(
+                    "Deleted scaling message for job {JobId}, MessageId: {MessageId}",
+                    jobId, messageInfo.Value.messageId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete scaling message for job {JobId}", jobId);
         }
     }
 
@@ -167,7 +214,6 @@ public class JobManager
             job.JobId, newStatus, workerId ?? "none", message ?? "none");
     }
 
-    // 기본 작업 관리 메서드
     public MLJob? GetJobStatus(string scenarioId, string jobId)
     {
         try
@@ -229,7 +275,6 @@ public class JobManager
         }
     }
 
-    // 작업 결과 관리 메서드
     public async Task SaveJobResultAsync(string scenarioId, string jobId, MLJobResult result)
     {
         try
@@ -282,7 +327,6 @@ public class JobManager
         }
     }
 
-    // Worker 관련 작업 관리 메서드
     public async Task<IEnumerable<MLJob>> GetOrphanedJobsAsync(TimeSpan threshold)
     {
         var orphanedJobs = new List<MLJob>();
@@ -363,6 +407,9 @@ public class JobManager
             // 작업을 찾았다면 클레임
             if (oldestWaitingJob != null)
             {
+                // 작업을 가져가기 전에 먼저 큐에서 해당 메시지 삭제
+                await DeleteScalingMessageForJobAsync(oldestWaitingJob.JobId);
+
                 await UpdateJobStatusAsync(
                     oldestWaitingJob,
                     MLJobStatus.Running,
