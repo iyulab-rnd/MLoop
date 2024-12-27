@@ -4,6 +4,7 @@ using MLoop.Models.Jobs;
 using MLoop.Storages;
 using System.Text;
 using Microsoft.Extensions.Configuration;
+using MLoop.Models.Messages;
 
 namespace MLoop.Services;
 
@@ -50,33 +51,38 @@ public class JobManager
 
     private async Task SendScalingNotificationAsync(MLJob job)
     {
-        // 큐가 없으면 즉시 리턴
         if (_scalingQueue == null) return;
 
         try
         {
+            // ScalingMessage 클래스 활용
+            var scalingMessage = new ScalingMessage
+            {
+                JobId = job.JobId,
+                Timestamp = DateTime.UtcNow
+            };
+
             var message = Convert.ToBase64String(
-                Encoding.UTF8.GetBytes(JsonHelper.Serialize(new
-                {
-                    job.JobId,
-                    job.ScenarioId,
-                    Timestamp = DateTime.UtcNow
-                }))
+                Encoding.UTF8.GetBytes(JsonHelper.Serialize(scalingMessage))
             );
 
-            var response = await _scalingQueue.SendMessageAsync(message,
+            // 작업 대기 시간을 고려하여 visibility timeout 조정
+            // TTL도 넉넉히 설정 (5분)
+            await _scalingQueue.SendMessageAsync(message,
                 visibilityTimeout: TimeSpan.FromSeconds(30),
-                timeToLive: TimeSpan.FromMinutes(1));
+                timeToLive: TimeSpan.FromMinutes(5));
 
             _logger.LogInformation(
-                "Sent scaling notification for job {JobId}",
+                "Sent scaling notification for waiting job {JobId}",
                 job.JobId);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex,
-                "Failed to send scaling notification for job {JobId}. This is non-critical.",
+            _logger.LogError(ex,
+                "Failed to send scaling notification for waiting job {JobId}. Worker auto-scaling might be affected.",
                 job.JobId);
+
+            // 큐 메시지 실패가 작업 생성을 중단시키지 않도록 예외를 다시 던지지 않음
         }
     }
 
@@ -91,7 +97,7 @@ public class JobManager
             var json = JsonHelper.Serialize(job);
             await File.WriteAllTextAsync(path, json);
 
-            // Waiting 상태의 새 작업인 경우 scaling 통지
+            // Waiting 상태의 새 작업인 경우에만 scaling 통지
             if (job.Status == MLJobStatus.Waiting)
             {
                 await SendScalingNotificationAsync(job);

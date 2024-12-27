@@ -407,7 +407,7 @@ POST {{host}}/api/scenarios/{{scenarioId}}/predictions/cleanup
 POST {{host}}/api/scenarios/{{scenarioId}}/predict
 Content-Type: text/tab-separated-values
 
-Area	Title	Description
+Title	Description
 Python Programming	How to Handle Large JSON Files Efficiently in Python?	I'm working on a Python project to process large JSON files (several GB). Loading the entire file into memory with json.load() causes crashes. I need an efficient way to extract specific keys and values without loading the full file. How can I handle large JSON files line by line or in chunks?
 
 #### Response
