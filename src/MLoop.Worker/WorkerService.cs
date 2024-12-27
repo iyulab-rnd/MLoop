@@ -22,6 +22,7 @@ public class WorkerService : BackgroundService
     private MLJob? _currentJob;
     private CancellationTokenSource? _currentJobCts;
     private DateTime _lastJobCheckTime;
+    private readonly IHostApplicationLifetime _hostLifetime;
     private bool hasQueue;
 
     public WorkerService(
@@ -30,7 +31,8 @@ public class WorkerService : BackgroundService
         JobManager jobManager,
         PipelineExecutor pipelineExecutor,
         ILogger<WorkerService> logger,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostApplicationLifetime hostLifetime)
     {
         _settings = settings.Value;
         _storage = storage;
@@ -39,6 +41,7 @@ public class WorkerService : BackgroundService
         _logger = logger;
         _workerId = _settings.WorkerId ?? $"worker_{Environment.MachineName}_{Guid.NewGuid():N}";
         _lastJobCheckTime = DateTime.UtcNow;
+        _hostLifetime = hostLifetime;
 
         var queueConnection = configuration.GetConnectionString("QueueConnection");
         this.hasQueue = !string.IsNullOrEmpty(queueConnection);
@@ -114,27 +117,25 @@ public class WorkerService : BackgroundService
         {
             try
             {
-                // 현재 작업이 없는 경우만 새 작업 찾기
                 if (_currentJob == null)
                 {
                     var nextJob = await _jobManager.FindAndClaimNextJobAsync(_workerId);
                     if (nextJob != null)
                     {
-                        _lastJobCheckTime = DateTime.UtcNow; // 작업을 찾은 시간 업데이트
+                        _lastJobCheckTime = DateTime.UtcNow;
                         await ProcessJobAsync(nextJob, stoppingToken);
                     }
-                    else
+                    else if (hasQueue && DateTime.UtcNow - _lastJobCheckTime > _settings.IdleTimeout)
                     {
-                        // IdleTimeout 체크 (설정된 시간동안 작업이 없으면 서비스 종료)
-                        if (hasQueue && DateTime.UtcNow - _lastJobCheckTime > _settings.IdleTimeout)
-                        {
-                            _logger.LogInformation(
-                                "Worker idle timeout reached after {IdleMinutes} minutes. Shutting down.",
-                                _settings.IdleTimeout.TotalMinutes);
-                            break; // ExecuteAsync를 종료하여 Worker 종료
-                        }
-                        await Task.Delay(_settings.JobPollingInterval, stoppingToken);
+                        _logger.LogInformation(
+                            "Worker idle timeout reached after {IdleMinutes} minutes. Shutting down.",
+                            _settings.IdleTimeout.TotalMinutes);
+
+                        // 호스트 종료 요청
+                        _hostLifetime.StopApplication();
+                        break;
                     }
+                    await Task.Delay(_settings.JobPollingInterval, stoppingToken);
                 }
                 else
                 {

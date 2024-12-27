@@ -88,6 +88,10 @@ builder.Logging.AddDebug();
 
 try
 {
+    // 종료 타임아웃 설정
+    var shutdownTimeout = builder.Configuration.GetValue("ShutdownTimeout", 30);
+    Environment.SetEnvironmentVariable("DOTNET_SHUTDOWNTIMEOUTSECONDS", shutdownTimeout.ToString());
+
     var host = builder.Build();
     await host.RunAsync();
 }
