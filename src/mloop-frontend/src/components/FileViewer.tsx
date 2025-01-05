@@ -52,9 +52,106 @@ const FileViewer = ({
   // Determine language based on file extension
   const getLanguage = (filename: string) => {
     const ext = filename.split('.').pop()?.toLowerCase();
-    if (ext === 'csv') return 'csv';
-    if (ext === 'tsv') return 'text';
-    return 'text';
+    switch (ext) {
+      // Data formats
+      case 'csv':
+        return 'csv';
+      case 'tsv':
+        return 'text';
+      case 'json':
+        return 'json';
+      case 'yaml':
+      case 'yml':
+        return 'yaml';
+      case 'xml':
+        return 'xml';
+      case 'toml':
+        return 'toml';
+      
+      // Configuration files
+      case 'ini':
+        return 'ini';
+      case 'env':
+        return 'plaintext';
+      case 'conf':
+        return 'plaintext';
+      
+      // Programming languages
+      case 'js':
+      case 'jsx':
+        return 'javascript';
+      case 'ts':
+      case 'tsx':
+        return 'typescript';
+      case 'py':
+        return 'python';
+      case 'java':
+        return 'java';
+      case 'c':
+        return 'c';
+      case 'cpp':
+      case 'cc':
+        return 'cpp';
+      case 'cs':
+        return 'csharp';
+      case 'rb':
+        return 'ruby';
+      case 'php':
+        return 'php';
+      case 'go':
+        return 'go';
+      case 'rs':
+        return 'rust';
+      case 'swift':
+        return 'swift';
+      case 'kt':
+      case 'kts':
+        return 'kotlin';
+      
+      // Web technologies
+      case 'html':
+        return 'html';
+      case 'css':
+        return 'css';
+      case 'scss':
+        return 'scss';
+      case 'less':
+        return 'less';
+      case 'sql':
+        return 'sql';
+      case 'graphql':
+      case 'gql':
+        return 'graphql';
+      
+      // Documentation
+      case 'md':
+      case 'markdown':
+        return 'markdown';
+      case 'txt':
+        return 'plaintext';
+      case 'log':
+        return 'plaintext';
+      
+      // Shell scripts
+      case 'sh':
+      case 'bash':
+        return 'shell';
+      case 'ps1':
+        return 'powershell';
+      case 'bat':
+      case 'cmd':
+        return 'bat';
+      
+      // Default case
+      default:
+        // Try to detect if it's a dot file (e.g. .gitignore, .dockerignore)
+        if (filename.startsWith('.')) {
+          if (filename === '.gitignore') return 'ignore';
+          if (filename === '.dockerignore') return 'ignore';
+          if (filename === '.env') return 'plaintext';
+        }
+        return 'text';
+    }
   };
 
   return (

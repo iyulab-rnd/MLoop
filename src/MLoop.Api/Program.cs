@@ -12,7 +12,7 @@ using MLoop.Api.InputFormatters;
 var options = new WebApplicationOptions()
 {
 #if DEBUG
-    WebRootPath = "wwwroot"
+    WebRootPath = @"D:\data\MLoop\src\mloop-frontend\dist"
 #else
     WebRootPath = "/var/data/wwwroot"
 #endif
@@ -90,7 +90,6 @@ app.UseRouting();
 app.UseHttpsRedirection();
 app.UseAuthorization();
 
-// API 라우트는 SPA fallback 전에 와야 합니다
 app.MapControllers();
 
 app.UseDefaultFiles();

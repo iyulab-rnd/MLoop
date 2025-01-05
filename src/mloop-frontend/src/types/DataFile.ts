@@ -3,4 +3,5 @@ export interface DataFile {
   path: string;
   size: number;
   lastModified: string;
+  isDirectory: boolean;
 }

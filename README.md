@@ -1,341 +1,185 @@
 # MLoop
 
-**MLoop** is an ML Ops service built on **.NET 8.0**, designed to streamline the management, training, and deployment of machine learning models. Leveraging the power of [ML.NET](https://www.nuget.org/profiles/MLNET) for model creation and the [mlnet-predict](https://www.nuget.org/packages/mlnet-predict) tool for predictions, MLoop provides a robust set of RESTful APIs for interacting with ML scenarios, models, data submissions, and predictions. This enables efficient and scalable machine learning operations tailored to your project's needs.
+MLoop 는 머신러닝 모델의 학습, 평가, 예측을 관리하는 서비스입니다. 시나리오 기반으로 데이터와 모델을 관리하며, 효율적인 ML 워크플로우를 지원합니다.
 
-## Table of Contents
+---
 
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [API Documentation](#api-documentation)
-  - [Base URL](#base-url)
-  - [Endpoints](#endpoints)
-    - [Get All ML Scenarios](#get-all-ml-scenarios)
-    - [Get a Specific ML Scenario](#get-a-specific-ml-scenario)
-    - [Get Models of a Scenario](#get-models-of-a-scenario)
-    - [Create a New Model](#create-a-new-model)
-    - [Get a Specific Model](#get-a-specific-model)
-    - [Get Model Training Log](#get-model-training-log)
-    - [Submit Data for Training or Evaluation](#submit-data-for-training-or-evaluation)
-    - [Submit Data for Prediction](#submit-data-for-prediction)
-    - [Get Prediction Result](#get-prediction-result)
-- [Usage Examples](#usage-examples)
+MLoop는 엔드-투-엔드 MLOps를 제공하는 통합 플랫폼입니다. 데이터 수집부터 모델 배포, 모니터링까지 머신러닝 모델의 전체 라이프사이클을 자동화합니다. RESTful API와 웹 기반 사용자 인터페이스를 통해 ML 워크플로우를 관리하며, 시나리오 기반의 프로젝트 구조로 실험을 체계적으로 구성할 수 있습니다.
 
-## Features
+MLoop는 지속적인 모델 개선 파이프라인을 구축합니다. 다양한 트리거(시간 기반, 데이터 드리프트 감지, 성능 임계값 등)에 의해 자동으로 모델을 재학습하고, 새로운 모델을 평가하여 자동으로 배포하는 MLOps 환경을 제공합니다.
 
-- **Scenario Management:** Create, retrieve, and manage ML scenarios.
-- **Model Management:** Train new models using [ML.NET](https://www.nuget.org/profiles/MLNET), retrieve existing models, and access model training logs.
-- **Data Submission:** Submit data in JSON or CSV formats for training or prediction.
-- **Prediction:** Generate predictions using the [mlnet-predict](https://www.nuget.org/packages/mlnet-predict) tool and retrieve prediction results.
-- **File Monitoring:** Automatically process input files for predictions.
-- **Error Handling:** Comprehensive error handling with global exception filters.
+## 주요 기능
 
-## Prerequisites
+- 시나리오 기반 ML 프로젝트 관리
+- 데이터 파일 업로드 및 관리
+- ML 모델 학습 및 평가
+- 학습된 모델을 사용한 예측 API 제공
+- 작업 상태 모니터링 및 로그 관리
+- 최적 모델 자동 선택
+- YAML 기반의 워크플로우 정의
+- 자동화된 모델 재학습 트리거
+  - 시간 기반 스케줄링
+  - 데이터 드리프트 감지
+  - 성능 메트릭 기반 트리거
+- 모델 버전 관리 및 롤백
+- A/B 테스트 지원
+- 실시간 모델 모니터링
+- 예측 결과 피드백 수집
+- 자동화된 모델 배포 파이프라인
+- CI/CD 통합
+- 분산 학습 지원
 
-- **ML.NET Packages**: MLoop utilizes the [ML.NET](https://www.nuget.org/profiles/MLNET) suite for model creation and management. These packages are included in the project dependencies and will be restored automatically.
+## 시스템 요구사항
 
-- **ML.NET CLI Tool**: Install the ML.NET command-line interface (CLI) tool to enable advanced model management and training capabilities.
-  
-  ```bash
-  dotnet tool search mlnet
-  # Verify installation
-  mlnet --version
-  ```
+- .NET 9.0 이상
+- Docker (컨테이너 배포 시)
+- Azure Storage Account (선택사항 - 스케일링 큐 사용 시)
 
-- **mlnet-predict Tool**: Install the `mlnet-predict` tool globally to enable prediction capabilities.
-  
-  ```bash
-  dotnet tool install -g mlnet-predict
-  # Verify installation
-  mlnet-predict --version
-  ```
+## 설치 방법
 
-## Configuration
+### Docker를 이용한 설치
 
-MLoop uses `MLoopOptions` for configuration, which can be set in the `appsettings.json` file or through environment variables.
+1. 도커 이미지 빌드
+```bash
+docker build -t mloop-api .
+```
 
-### Example `appsettings.json`:
+2. 컨테이너 실행
+```bash
+docker run -d \
+  -p 80:80 \
+  -v /path/to/data:/var/data \
+  -e Storage__BasePath=/var/data/mloop \
+  -e ConnectionStrings__QueueConnection="<your-queue-connection-string>" \
+  mloop-api
+```
+
+### 직접 실행
+
+1. 프로젝트 빌드
+```bash
+dotnet build
+```
+
+2. 서비스 실행
+```bash
+dotnet run --project MLoop.Api
+```
+
+## 환경 설정
+
+### 주요 설정 항목
+
+- `Storage:BasePath`: 데이터 저장 경로
+- `ConnectionStrings:QueueConnection`: Azure Storage Queue 연결 문자열
+- `Logging:LogLevel:Default`: 기본 로그 레벨
+
+### appsettings.json 예시
 ```json
 {
-  "MLoopOptions": {
-    "Path": "C:\\MLoopData"
+  "Storage": {
+    "BasePath": "/var/data/mloop"
   },
-  ...
+  "ConnectionStrings": {
+    "QueueConnection": "your-connection-string"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information"
+    }
+  }
 }
 ```
 
-- **Path:** Base directory for storing scenarios and models.
+## API 엔드포인트
 
-## API Documentation
+### 시나리오 관리
 
-### Base URL
+- `GET /api/scenarios`: 시나리오 목록 조회
+- `POST /api/scenarios`: 새 시나리오 생성
+- `GET /api/scenarios/{scenarioId}`: 시나리오 상세 조회
+- `PUT /api/scenarios/{scenarioId}`: 시나리오 정보 수정
+- `DELETE /api/scenarios/{scenarioId}`: 시나리오 삭제
 
+### 데이터 관리
+
+- `GET /api/scenarios/{scenarioId}/data`: 데이터 파일 목록 조회
+- `POST /api/scenarios/{scenarioId}/data`: 데이터 파일 업로드
+- `DELETE /api/scenarios/{scenarioId}/data/{filePath}`: 데이터 파일 삭제
+
+### 모델 관리
+
+- `GET /api/scenarios/{scenarioId}/models`: 모델 목록 조회
+- `GET /api/scenarios/{scenarioId}/models/{modelId}`: 모델 상세 조회
+- `GET /api/scenarios/{scenarioId}/models/{modelId}/metrics`: 모델 메트릭 조회
+- `GET /api/scenarios/{scenarioId}/models/best-model`: 최적 모델 조회
+- `POST /api/scenarios/{scenarioId}/models/cleanup`: 불필요한 모델 정리
+
+### 예측
+
+- `POST /api/scenarios/{scenarioId}/predict`: 예측 수행
+- `GET /api/scenarios/{scenarioId}/predictions`: 예측 이력 조회
+- `GET /api/scenarios/{scenarioId}/predictions/{predictionId}`: 예측 결과 조회
+- `POST /api/scenarios/{scenarioId}/predictions/cleanup`: 완료된 예측 정리
+
+### 워크플로우
+
+- `GET /api/scenarios/{scenarioId}/workflows/train`: 학습 워크플로우 조회
+- `POST /api/scenarios/{scenarioId}/workflows/train`: 학습 워크플로우 업데이트
+- `GET /api/scenarios/{scenarioId}/workflows/predict`: 예측 워크플로우 조회
+- `POST /api/scenarios/{scenarioId}/workflows/predict`: 예측 워크플로우 업데이트
+
+## 데이터 구조
+
+### 시나리오 디렉토리 구조
 ```
-https://localhost:7039/api
-```
-
-### Endpoints
-
-#### Get All ML Scenarios
-
-**Endpoint:**
-```
-GET /api/scenarios
-```
-
-**Description:**
-Retrieves a list of all available ML scenarios.
-
-**Example Request:**
-```http
-GET https://localhost:7039/api/scenarios
-```
-
-#### Get a Specific ML Scenario
-
-**Endpoint:**
-```
-GET /api/scenarios/{scenarioName}
-```
-
-**Description:**
-Retrieves details of a specific ML scenario by name.
-
-**Example Request:**
-```http
-GET https://localhost:7039/api/scenarios/scenario_1
-```
-
-#### Get Models of a Scenario
-
-**Endpoint:**
-```
-GET /api/scenarios/{scenarioName}/models
-```
-
-**Description:**
-Retrieves all models associated with a specific scenario.
-
-**Example Request:**
-```http
-GET https://localhost:7039/api/scenarios/scenario_1/models
+scenarios/
+  ├── {scenarioId}/
+  │   ├── scenario.json    # 시나리오 메타데이터
+  │   ├── data/           # 데이터 파일
+  │   ├── models/         # 학습된 모델
+  │   ├── jobs/           # 작업 상태 및 로그
+  │   ├── predictions/    # 예측 결과
+  │   └── workflows/      # 워크플로우 정의
+  └── worker.lock         # 작업 처리 잠금 파일
 ```
 
-#### Create a New Model
+## 개발 가이드
 
-**Endpoint:**
-```
-POST /api/scenarios/{scenarioName}/train
-```
+### 새로운 ML 타입 추가
 
-**Description:**
-Initiates the training of a new model within the specified scenario using [ML.NET](https://www.nuget.org/profiles/MLNET).
+1. `ScenarioService.cs`의 `IsValidMLType` 메서드에 새로운 타입 추가
+2. 해당 타입에 맞는 워크플로우 템플릿 구현
+3. 필요한 경우 새로운 메트릭 수집 로직 추가
 
-**Example Request:**
-```http
-POST https://localhost:7039/api/scenarios/scenario_1/train
-```
+### 워크플로우 정의 예시
 
-#### Get a Specific Model
-
-**Endpoint:**
-```
-GET /api/scenarios/{scenarioName}/models/{modelName}
-```
-
-**Description:**
-Retrieves details of a specific model within a scenario.
-
-**Example Request:**
-```http
-GET https://localhost:7039/api/scenarios/scenario_1/models/nD05HPCA
+```yaml
+steps:
+  - name: preprocess
+    type: data_preprocessing
+    config:
+      inputPath: "data/raw.csv"
+      outputPath: "data/processed.csv"
+      
+  - name: train
+    type: model_training
+    needs: [preprocess]
+    config:
+      algorithm: "lightgbm"
+      parameters:
+        learningRate: 0.1
+        numLeaves: 31
 ```
 
-#### Get Model Training Log
+## 라이선스
 
-**Endpoint:**
-```
-GET /api/scenarios/{scenarioName}/models/{modelName}/log
-```
+이 프로젝트는 MIT 라이선스로 배포됩니다.
 
-**Description:**
-Retrieves the training log of a specific model.
+## 기여하기
 
-**Example Request:**
-```http
-GET https://localhost:7039/api/scenarios/scenario_1/models/nD05HPCA/log
-```
-
-#### Submit Data for Training or Evaluation
-
-**Endpoint:**
-```
-POST /api/scenarios/{scenarioName}/data
-```
-
-**Description:**
-Submits data in JSON or CSV format for training or evaluation purposes.
-
-**Headers:**
-- `Content-Type: application/json` or `Content-Type: text/csv`
-
-**Example Requests:**
-
-- **JSON:**
-  ```http
-  POST https://localhost:7039/api/scenarios/scenario_1/data
-  Content-Type: application/json
-
-  [
-      {
-          "userId": 900,
-          "movieId": 240,
-          "rating": 4
-      },
-      {
-          "userId": 900,
-          "movieId": 241,
-          "rating": 5
-      },
-      {
-          "userId": 900,
-          "movieId": 242,
-          "rating": 3.5
-      }
-  ]
-  ```
-
-- **CSV:**
-  ```http
-  POST https://localhost:7039/api/scenarios/scenario_1/data
-  Content-Type: text/csv
-
-  userId,movieId,rating
-  900,240,4
-  900,241,5
-  900,242,3.5
-  ```
-
-#### Submit Data for Prediction
-
-**Endpoint:**
-```
-POST /api/scenarios/{scenarioName}/predict
-```
-
-**Description:**
-Submits data in JSON or CSV format to generate predictions using the [mlnet-predict](https://www.nuget.org/packages/mlnet-predict) tool.
-
-**Headers:**
-- `Content-Type: application/json` or `Content-Type: text/csv`
-
-**Example Requests:**
-
-- **JSON:**
-  ```http
-  POST https://localhost:7039/api/scenarios/scenario_1/predict
-  Content-Type: application/json
-
-  [
-      {
-          "userId": 900,
-          "movieId": 240
-      },
-      {
-          "userId": 900,
-          "movieId": 241
-      },
-      {
-          "userId": 900,
-          "movieId": 242
-      }    
-  ]
-  ```
-
-- **CSV:**
-  ```http
-  POST https://localhost:7039/api/scenarios/scenario_1/predict
-  Content-Type: text/csv
-
-  userId,movieId
-  1,101
-  1,110
-  1,151
-  ```
-
-#### Get Prediction Result
-
-**Endpoint:**
-```
-GET /api/scenarios/{scenarioName}/predict/{inputName}
-```
-
-**Description:**
-Retrieves the prediction result for a previously submitted input.
-
-**Example Request:**
-```http
-GET https://localhost:7039/api/scenarios/scenario_1/predict/input_8
-```
-
-## Usage Examples
-
-You can interact with the MLoop API using tools like [Postman](https://www.postman.com/) or `curl`. Below are some example requests.
-
-### Example 1: Submit Data in JSON
-
-```bash
-curl -X POST https://localhost:7039/api/scenarios/scenario_1/data \
-     -H "Content-Type: application/json" \
-     -d '[
-         { "userId": 900, "movieId": 240, "rating": 4 },
-         { "userId": 900, "movieId": 241, "rating": 5 },
-         { "userId": 900, "movieId": 242, "rating": 3.5 }
-     ]'
-```
-
-### Example 2: Submit Data in CSV
-
-```bash
-curl -X POST https://localhost:7039/api/scenarios/scenario_1/data \
-     -H "Content-Type: text/csv" \
-     -d 'userId,movieId,rating
-     900,240,4
-     900,241,5
-     900,242,3.5'
-```
-
-### Example 3: Submit Data for Prediction and Retrieve Result
-
-1. **Submit Prediction Data:**
-   ```bash
-   curl -X POST https://localhost:7039/api/scenarios/scenario_1/predict \
-        -H "Content-Type: application/json" \
-        -d '[
-            { "userId": 900, "movieId": 240 },
-            { "userId": 900, "movieId": 241 },
-            { "userId": 900, "movieId": 242 }
-        ]'
-   ```
-
-   **Response:**
-   ```json
-   "input_8"
-   ```
-
-2. **Retrieve Prediction Result:**
-   ```bash
-   curl -X GET https://localhost:7039/api/scenarios/scenario_1/predict/input_8
-   ```
-
-   **Response:**
-   ```json
-   {
-       "predictions": [
-           { "userId": 900, "movieId": 240, "predictedRating": 4.5 },
-           { "userId": 900, "movieId": 241, "predictedRating": 3.7 },
-           { "userId": 900, "movieId": 242, "predictedRating": 4.2 }
-       ]
-   }
-   ```
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request

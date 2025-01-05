@@ -4,7 +4,6 @@ public class LocalFileStorage : IFileStorage
 {
     private readonly string basePath;
 
-    // 경로 관련 상수 정의
     private const string ScenariosDirName = "scenarios";
     private const string DataDirName = "data";
     private const string ModelsDirName = "models";
@@ -47,20 +46,6 @@ public class LocalFileStorage : IFileStorage
     public string GetScenarioMetadataPath(string scenarioId)
         => Path.Combine(GetScenarioBaseDir(scenarioId), "scenario.json");
 
-    public Task<IEnumerable<FileInfo>> GetScenarioDataFilesAsync(string scenarioId)
-    {
-        var dataDir = GetScenarioDataDir(scenarioId);
-        if (!Directory.Exists(dataDir))
-        {
-            return Task.FromResult(Enumerable.Empty<FileInfo>());
-        }
-
-        var files = Directory.GetFiles(dataDir, "*.*", SearchOption.AllDirectories)
-            .Select(f => new FileInfo(f));
-
-        return Task.FromResult(files);
-    }
-
     public string GetScenarioJobsDir(string scenarioId)
         => Path.Combine(GetScenarioBaseDir(scenarioId), JobsDirName);
 
@@ -68,7 +53,7 @@ public class LocalFileStorage : IFileStorage
         => Path.Combine(GetScenarioJobsDir(scenarioId), $"{jobId}.json");
 
     public string GetJobResultPath(string scenarioId, string jobId)
-    => Path.Combine(GetScenarioJobsDir(scenarioId), $"{jobId}_result.json");
+        => Path.Combine(GetScenarioJobsDir(scenarioId), $"{jobId}_result.json");
 
     public string GetJobLogsPath(string scenarioId, string jobId)
         => Path.Combine(GetScenarioJobsDir(scenarioId), $"{jobId}.log");
@@ -111,5 +96,82 @@ public class LocalFileStorage : IFileStorage
             .Select(f => new FileInfo(f));
 
         return Task.FromResult(files);
+    }
+
+    private string NormalizePath(string path)
+        => path.Replace("\\", "/");
+
+    public (bool isValid, string? fullPath, string? error) ValidateAndGetFullPath(string scenarioId, string relativePath)
+    {
+        if (relativePath.Contains("..") || Path.IsPathRooted(relativePath))
+        {
+            return (false, null, "Invalid file path.");
+        }
+
+        var dataDir = GetScenarioDataDir(scenarioId);
+        var fullPath = Path.Combine(dataDir, relativePath);
+
+        // Prevent directory traversal
+        if (!Path.GetFullPath(fullPath).StartsWith(Path.GetFullPath(dataDir)))
+        {
+            return (false, null, "Invalid file path.");
+        }
+
+        return (true, fullPath, null);
+    }
+
+    public async Task<IEnumerable<DirectoryEntry>> GetScenarioDataEntriesAsync(string scenarioId, string? path = null)
+    {
+        var entries = new List<DirectoryEntry>();
+        var dataDir = GetScenarioDataDir(scenarioId);
+        var targetDir = dataDir;
+
+        // 경로가 제공된 경우 유효성 검사 및 전체 경로 구성
+        if (!string.IsNullOrEmpty(path))
+        {
+            var validationResult = ValidateAndGetFullPath(scenarioId, path);
+            if (!validationResult.isValid)
+            {
+                throw new ArgumentException(validationResult.error);
+            }
+            targetDir = validationResult.fullPath!;
+        }
+
+        // 디렉토리가 존재하지 않는 경우 빈 목록 반환
+        if (!Directory.Exists(targetDir))
+        {
+            return entries;
+        }
+
+        await Task.Run(() =>
+        {
+            var dirInfo = new DirectoryInfo(targetDir);
+
+            // 디렉토리 항목 추가
+            foreach (var dir in dirInfo.GetDirectories())
+            {
+                entries.Add(new DirectoryEntry(
+                    name: dir.Name,
+                    path: NormalizePath(Path.GetRelativePath(dataDir, dir.FullName)),
+                    size: 0,
+                    lastModified: dir.LastWriteTimeUtc,
+                    isDirectory: true
+                ));
+            }
+
+            // 파일 항목 추가
+            foreach (var file in dirInfo.GetFiles())
+            {
+                entries.Add(new DirectoryEntry(
+                    name: file.Name,
+                    path: NormalizePath(Path.GetRelativePath(dataDir, file.FullName)),
+                    size: file.Length,
+                    lastModified: file.LastWriteTimeUtc,
+                    isDirectory: false
+                ));
+            }
+        });
+
+        return entries;
     }
 }

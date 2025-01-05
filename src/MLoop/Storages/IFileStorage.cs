@@ -1,4 +1,6 @@
-﻿namespace MLoop.Storages;
+﻿using System.Reflection.PortableExecutable;
+
+namespace MLoop.Storages;
 
 public interface IFileStorage
 {
@@ -7,7 +9,6 @@ public interface IFileStorage
     string GetScenarioDataDir(string scenarioId);
     string GetScenarioModelsDir(string scenarioId);
     string GetScenarioMetadataPath(string scenarioId);
-    Task<IEnumerable<FileInfo>> GetScenarioDataFilesAsync(string scenarioId);
 
     string GetModelPath(string scenarioId, string modelId);
     string GetScenarioJobsDir(string scenarioId);
@@ -20,7 +21,9 @@ public interface IFileStorage
     string GetPredictionInputPath(string scenarioId, string predictionId, string extension);
     string GetPredictionResultPath(string scenarioId, string predictionId);
 
-    string GetPredictionsDir(string scenarioId); // 시나리오 전체 예측 디렉토리
-    Task<IEnumerable<FileInfo>> GetPredictionFiles(string scenarioId, string modelId); // 특정 모델의 예측 파일 목록
+    string GetPredictionsDir(string scenarioId);
+    Task<IEnumerable<FileInfo>> GetPredictionFiles(string scenarioId, string modelId);
 
+    Task<IEnumerable<DirectoryEntry>> GetScenarioDataEntriesAsync(string scenarioId, string? path = null);
+    (bool isValid, string? fullPath, string? error) ValidateAndGetFullPath(string scenarioId, string relativePath);
 }

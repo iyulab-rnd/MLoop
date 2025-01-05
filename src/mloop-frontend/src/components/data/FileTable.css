@@ -1,0 +1,38 @@
+/* 글로벌 드롭다운 스타일 */
+.custom-global-dropdown {
+  position: absolute;
+  background: white;
+  border: 1px solid #e5e7eb; /* Tailwind의 gray-200 */
+  border-radius: 0.5rem; /* Tailwind의 rounded-lg */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+              0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Tailwind의 shadow-lg */
+  min-width: 150px;
+  z-index: 100000; /* 매우 높은 z-index 설정 */
+  opacity: 0;
+  transform: scale(0.95) translateX(0);
+}
+
+.custom-global-dropdown.open {
+  opacity: 1;
+  transform: scale(1) translateX(-100%);
+}
+
+.custom-global-dropdown sl-menu sl-menu-item:hover {
+  background-color: #f3f4f6; /* Tailwind의 gray-100 */
+}
+
+.action-button {
+  cursor: pointer;
+}
+
+/* 부모 컨테이너에 position: relative와 overflow: visible 설정 */
+.parent-container {
+  position: relative; /* 드롭다운 포지셔닝을 위한 relative 설정 */
+  overflow: visible; /* 드롭다운 메뉴가 부모를 벗어나도 보이도록 설정 */
+}
+
+/* 실제 스크롤링을 위한 자식 컨테이너 */
+.scrollable-content {
+  height: 100%;
+  overflow: auto; /* 스크롤 가능하도록 설정 */
+}

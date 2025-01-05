@@ -3,6 +3,10 @@ import { api } from "./api";
 
 type EmptyRequest = Record<string, never>;
 
+interface ListFilesOptions {
+  path?: string;
+}
+
 const detectInputFormat = (input: string): 'tsv' | 'csv' => {
   // 첫 줄을 가져옵니다
   const firstLine = input.split(/\r?\n/)[0];
@@ -71,13 +75,14 @@ export const scenarioApi = {
   },
 
   // 데이터 파일 목록 조회
-  listFiles: async (scenarioId: string): Promise<DataFile[]> => {
-    return api.get<DataFile[]>(`/api/scenarios/${scenarioId}/data`);
+  listFiles: async (scenarioId: string, options?: ListFilesOptions): Promise<DataFile[]> => {
+    const url = `/api/scenarios/${scenarioId}/data${options?.path ? `?path=${encodeURIComponent(options.path)}` : ''}`;
+    return api.get<DataFile[]>(url);
   },
 
   // 데이터 파일 삭제
-  deleteFile: async (scenarioId: string, fileName: string): Promise<void> => {
-    return api.delete<void>(`/api/scenarios/${scenarioId}/data/${fileName}`);
+  deleteFile: async (scenarioId: string, filePath: string): Promise<void> => {
+    return api.delete<void>(`/api/scenarios/${scenarioId}/data/${filePath}`);
   },
 
   // 모델 목록 조회

@@ -1,10 +1,18 @@
+// src/pages/DataPage.tsx
 import React, { useState, useEffect, useCallback } from "react";
-import { useOutletContext } from "react-router-dom";
-import { SlButton, SlIcon } from "@shoelace-style/shoelace/dist/react";
+import { useOutletContext, useSearchParams } from "react-router-dom";
+import {
+  SlButton,
+  SlIcon,
+  SlBreadcrumb,
+  SlBreadcrumbItem,
+} from "@shoelace-style/shoelace/dist/react";
 import { Scenario } from "../types/Scenario";
 import { DataFile } from "../types/DataFile";
 import { scenarioApi } from "../api/scenarios";
-import { useNotification } from "../hooks/useNotification"
+import { useNotification } from "../hooks/useNotification";
+import FileViewer from "../components/FileViewer";
+import FileTable from "../components/data/FileTable";
 
 type ScenarioContextType = {
   scenario: Scenario;
@@ -13,14 +21,24 @@ type ScenarioContextType = {
 export const DataPage = () => {
   const { showNotification } = useNotification();
   const { scenario } = useOutletContext<ScenarioContextType>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [files, setFiles] = useState<DataFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<{
+    url: string;
+    name: string;
+  } | null>(null);
+
+  const currentPath = searchParams.get("path") || "";
 
   const fetchFiles = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await scenarioApi.listFiles(scenario.scenarioId);
+      const data = await scenarioApi.listFiles(
+        scenario.scenarioId,
+        currentPath ? { path: currentPath } : undefined
+      );
       setFiles(data);
     } catch (error) {
       showNotification(
@@ -30,11 +48,37 @@ export const DataPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [scenario.scenarioId, showNotification]);
+  }, [scenario.scenarioId, currentPath, showNotification]);
 
   useEffect(() => {
     fetchFiles();
   }, [fetchFiles]);
+
+  const handleUnzip = async (filePath: string) => {
+    try {
+      const response = await fetch(
+        `/api/scenarios/${
+          scenario.scenarioId
+        }/data/unzip?path=${encodeURIComponent(filePath)}`,
+        {
+          method: "POST",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to unzip file: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      showNotification("success", "File unzipped successfully");
+      await fetchFiles();
+    } catch (error) {
+      showNotification(
+        "danger",
+        error instanceof Error ? error.message : "Failed to unzip file"
+      );
+    }
+  };
 
   const handleFilesUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -42,13 +86,20 @@ export const DataPage = () => {
     const selectedFiles = event.target.files;
     if (!selectedFiles || selectedFiles.length === 0) return;
 
-    // 파일 크기 제한
-    const MAX_SIZE = 200 * 1024 * 1024; // 200MB
+    const MAX_SIZE = {
+      zip: 500 * 1024 * 1024, // 500MB for zip files
+      default: 200 * 1024 * 1024, // 200MB for other files
+    };
+
     for (const file of selectedFiles) {
-      if (file.size > MAX_SIZE) {
+      const extension = file.name.split(".").pop()?.toLowerCase();
+      const sizeLimit = extension === "zip" ? MAX_SIZE.zip : MAX_SIZE.default;
+      const sizeLimitInMB = sizeLimit / (1024 * 1024);
+
+      if (file.size > sizeLimit) {
         showNotification(
           "danger",
-          `File ${file.name} exceeds the maximum size of 10MB`
+          `File ${file.name} exceeds the maximum size of ${sizeLimitInMB}MB`
         );
         return;
       }
@@ -56,11 +107,22 @@ export const DataPage = () => {
 
     setUploading(true);
 
+    const formData = new FormData();
+    Array.from(selectedFiles).forEach((file) => {
+      formData.append("files", file);
+    });
+
     try {
-      await scenarioApi.uploadFiles(
-        scenario.scenarioId,
-        Array.from(selectedFiles)
+      await fetch(
+        `/api/scenarios/${scenario.scenarioId}/data${
+          currentPath ? `?path=${encodeURIComponent(currentPath)}` : ""
+        }`,
+        {
+          method: "POST",
+          body: formData,
+        }
       );
+
       await fetchFiles();
       showNotification(
         "success",
@@ -73,14 +135,13 @@ export const DataPage = () => {
       );
     } finally {
       setUploading(false);
-      // 동일한 파일을 다시 업로드할 수 있도록 입력 값을 초기화합니다.
       event.target.value = "";
     }
   };
 
-  const handleDelete = async (fileName: string) => {
+  const handleDelete = async (filePath: string) => {
     try {
-      await scenarioApi.deleteFile(scenario.scenarioId, fileName);
+      await scenarioApi.deleteFile(scenario.scenarioId, filePath);
       await fetchFiles();
       showNotification("success", "File deleted successfully");
     } catch (error) {
@@ -91,17 +152,47 @@ export const DataPage = () => {
     }
   };
 
-  const formatFileSize = (bytes: number) => {
-    const units = ["B", "KB", "MB", "GB"];
-    let size = bytes;
-    let unitIndex = 0;
+  const handleNavigate = (path: string) => {
+    setSearchParams({ path });
+  };
 
-    while (size >= 1024 && unitIndex < units.length - 1) {
-      size /= 1024;
-      unitIndex++;
-    }
+  const handleView = (file: DataFile) => {
+    const fileUrl = `/api/scenarios/${scenario.scenarioId}/data/${file.path}`;
+    setSelectedFile({ url: fileUrl, name: file.name });
+  };
 
-    return `${size.toFixed(1)} ${units[unitIndex]}`;
+  const handleDownload = (filePath: string, fileName: string) => {
+    const downloadUrl = `/api/scenarios/${scenario.scenarioId}/data/${filePath}`;
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const renderBreadcrumbs = () => {
+    if (!currentPath) return null;
+
+    const pathParts = currentPath.split("/");
+    return (
+      <SlBreadcrumb className="mb-4">
+        <SlBreadcrumbItem onClick={() => setSearchParams({})}>
+          Root
+        </SlBreadcrumbItem>
+        {pathParts.map((part, index) => {
+          const path = pathParts.slice(0, index + 1).join("/");
+          return (
+            <SlBreadcrumbItem
+              key={path}
+              onClick={() => setSearchParams({ path })}
+            >
+              {part}
+            </SlBreadcrumbItem>
+          );
+        })}
+      </SlBreadcrumb>
+    );
   };
 
   if (loading) {
@@ -114,85 +205,62 @@ export const DataPage = () => {
 
   return (
     <div className="p-6">
-      <div className="mb-6 flex justify-between items-center">
-        <h2 className="text-2xl font-semibold">Dataset List</h2>
-        <div>
-          <input
-            type="file"
-            id="fileUpload"
-            className="hidden"
-            onChange={handleFilesUpload}
-            multiple
-            accept=".tsv, .csv, .xlsx" // 필요한 파일 형식을 추가
-            disabled={uploading}
-          />
-          <SlButton
-            variant="primary"
-            onClick={() => document.getElementById("fileUpload")?.click()}
-            loading={uploading}
-          >
-            <SlIcon slot="prefix" name="upload" />
-            Upload Files
-          </SlButton>
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h2 className="text-2xl font-semibold">Dataset List</h2>
+            <p className="text-gray-600 mt-1">
+              View and manage datasets for this scenario
+            </p>
+          </div>
+          <div>
+            <input
+              type="file"
+              id="fileUpload"
+              className="hidden"
+              onChange={handleFilesUpload}
+              multiple
+              accept=".tsv, .csv, .xlsx, .zip"
+              disabled={uploading}
+            />
+            <SlButton
+              variant="primary"
+              onClick={() => document.getElementById("fileUpload")?.click()}
+              loading={uploading}
+            >
+              <SlIcon slot="prefix" name="upload" />
+              Upload Files
+            </SlButton>
+          </div>
         </div>
+        {renderBreadcrumbs()}
       </div>
 
       {files.length === 0 ? (
         <div className="bg-gray-50 rounded-lg p-8 text-center text-gray-500">
-          <p>No datasets available for {scenario.name} yet.</p>
-          <p className="mt-2">
-            Click the button above to upload your first dataset.
-          </p>
+          <p>No datasets available in this directory.</p>
+          <p className="mt-2">Click the button above to upload your files.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  File Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Size
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Modified
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {files.map((file) => (
-                <tr key={file.path}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <SlIcon name="file-earmark" className="mr-2" />
-                      {file.name}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {formatFileSize(file.size)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {new Date(file.lastModified).toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <SlButton
-                      variant="danger"
-                      size="small"
-                      onClick={() => handleDelete(file.name)}
-                    >
-                      <SlIcon slot="prefix" name="trash" />
-                      Delete
-                    </SlButton>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="bg-white rounded-lg">
+          <FileTable
+            files={files}
+            onDelete={handleDelete}
+            onUnzip={handleUnzip}
+            onView={handleView}
+            onNavigate={handleNavigate}
+            onDownload={handleDownload} // Download 핸들러 전달
+          />
         </div>
+      )}
+
+      {selectedFile && (
+        <FileViewer
+          url={selectedFile.url}
+          fileName={selectedFile.name}
+          open={true}
+          onClose={() => setSelectedFile(null)}
+        />
       )}
     </div>
   );
