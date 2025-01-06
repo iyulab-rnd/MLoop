@@ -69,7 +69,7 @@ export const DataPage = () => {
         throw new Error(`Failed to unzip file: ${response.statusText}`);
       }
 
-      const result = await response.json();
+      await response.json();
       showNotification("success", "File unzipped successfully");
       await fetchFiles();
     } catch (error) {

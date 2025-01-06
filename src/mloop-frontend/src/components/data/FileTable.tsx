@@ -1,5 +1,4 @@
-// src/components/data/FileTable.tsx
-import React, { useRef, useCallback, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import ReactDOM from "react-dom"; // 포털 사용을 위해 유지
 import {
@@ -65,9 +64,6 @@ const FileRow = React.memo(
     ) => void;
     onNavigate: (path: string) => void;
   }) => {
-    const canPreview =
-      !file.isDirectory &&
-      ["csv", "tsv", "txt"].includes(file.name.split(".").pop()?.toLowerCase() || "");
     const isZip =
       !file.isDirectory && (file.name.split(".").pop()?.toLowerCase() === "zip");
 
@@ -143,15 +139,6 @@ const FileTable: React.FC<FileTableProps> = ({
     estimateSize: () => 53,
     overscan: 5,
   });
-
-  const measureElement = useCallback(
-    (el: HTMLElement | null) => {
-      if (el) {
-        rowVirtualizer.measureElement(el);
-      }
-    },
-    [rowVirtualizer]
-  );
 
   // 드롭다운 상태 관리
   const [dropdownState, setDropdownState] = useState<{

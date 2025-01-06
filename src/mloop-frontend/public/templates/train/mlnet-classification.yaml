@@ -1,0 +1,16 @@
+steps:
+  - name: classify_issues
+    type: mlnet-train
+    config:
+      command: classification
+      args:
+        # 필수 설정
+        dataset: issues_train.tsv
+        validation-dataset: issues_test.tsv
+        label-col: Area
+        
+        # 옵션 설정
+        has-header: true
+        allow-quote: true
+        train-time: 600
+        ignore-cols: ID

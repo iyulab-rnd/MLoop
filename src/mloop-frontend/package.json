@@ -21,6 +21,7 @@
     "@shoelace-style/shoelace": "^2.19.1",
     "@tanstack/react-virtual": "^3.11.2",
     "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.10.5",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react-swc": "^3.5.0",
