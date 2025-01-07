@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Diagnostics;
 using MLoop;
 using MLoop.Api.InputFormatters;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.FileProviders;
 
 var options = new WebApplicationOptions()
 {
@@ -93,7 +95,13 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.UseDefaultFiles();
-app.UseStaticFiles();
+
+var provider = new FileExtensionContentTypeProvider();
+provider.Mappings[".yaml"] = "text/yaml";
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = provider
+});
 
 // SPA fallback route - API가 아닌 모든 요청을 index.html로 리다이렉트
 app.MapFallbackToFile("index.html");

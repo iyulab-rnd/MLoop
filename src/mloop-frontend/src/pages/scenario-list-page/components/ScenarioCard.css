@@ -1,0 +1,107 @@
+.scenario-card-wrapper {
+  display: block;
+  width: 100%;
+  height: 0;
+  padding-bottom: 75%;
+  position: relative;
+}
+
+.scenario-card {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  transition: all 300ms;
+}
+
+.scenario-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--sl-shadow-large);
+}
+
+/* Force the card's inner content to take full width */
+.scenario-card::part(base) {
+  width: 100%;
+  height: 100%;
+}
+
+.scenario-card::part(body) {
+  width: 100%;
+  height: 100%;
+  padding: var(--sl-spacing-large);
+}
+
+.scenario-card-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.scenario-card-header {
+  width: 100%;
+  margin-bottom: var(--sl-spacing-medium);
+}
+
+.scenario-card-type {
+  display: inline-flex;
+  padding: 0.25rem 0.75rem;
+  font-size: var(--sl-font-size-small);
+  font-weight: var(--sl-font-weight-medium);
+  border-radius: var(--sl-border-radius-pill);
+  background-color: var(--sl-color-blue-100);
+  color: var(--sl-color-blue-800);
+  text-transform: capitalize;
+}
+
+.scenario-card-body {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.scenario-card-title {
+  width: 100%;
+  font-size: var(--sl-font-size-large);
+  font-weight: var(--sl-font-weight-semibold);
+  color: var(--sl-color-neutral-900);
+  margin-bottom: var(--sl-spacing-small);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scenario-card-description {
+  width: 100%;
+  color: var(--sl-color-neutral-600);
+  margin-bottom: var(--sl-spacing-medium);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: var(--sl-font-size-small);
+}
+
+.scenario-card-tags {
+  width: 100%;
+  height: 4rem;
+  overflow: hidden;
+  margin-bottom: var(--sl-spacing-medium);
+}
+
+.scenario-card-footer {
+  width: 100%;
+  padding-top: var(--sl-spacing-small);
+  border-top: 1px solid var(--sl-color-neutral-200);
+  margin-top: auto;
+}
+
+.scenario-card-date {
+  width: 100%;
+  font-size: var(--sl-font-size-small);
+  color: var(--sl-color-neutral-500);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

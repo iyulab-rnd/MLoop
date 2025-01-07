@@ -8,20 +8,24 @@ interface TagInputProps {
   placeholder?: string;
 }
 
-export const TagInput: React.FC<TagInputProps> = ({ tags, setTags, placeholder = "Type tag and press Enter..." }) => {
+export const TagInput: React.FC<TagInputProps> = ({ tags, setTags, placeholder = "Type tags separated by commas..." }) => {
   const [inputValue, setInputValue] = useState('');
   const inputRef = useRef<SlInputElement>(null);
 
-  // 태그 추가 핸들러
+  // 태그 추가 핸들러 - 여러 태그 처리 가능하도록 수정
   const handleAddTag = useCallback((e?: React.KeyboardEvent<HTMLElement> | KeyboardEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
     
-    const newTag = inputValue.trim();
-    if (newTag && !tags.includes(newTag)) {
-      setTags([...tags, newTag]);
+    const tagsToAdd = inputValue
+      .split(',')
+      .map(tag => tag.trim().replace(/^#/, '')) // '#' 제거
+      .filter(tag => tag && !tags.includes(tag)); // 빈 문자열과 중복 제거
+
+    if (tagsToAdd.length > 0) {
+      setTags([...tags, ...tagsToAdd]);
       setInputValue('');
     }
   }, [inputValue, tags, setTags]);
