@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   SlIcon,
@@ -19,6 +19,9 @@ export const JobDetailPage = () => {
   const [job, setJob] = useState<Job | null>(null);
   const [logs, setLogs] = useState<string>("");
   const [activeTab, setActiveTab] = useState("details");
+  const [elapsedTime, setElapsedTime] = useState<string>("00:00:00");
+  const logsRef = useRef<HTMLDivElement>(null);
+  const autoScrollRef = useRef(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,17 +54,58 @@ export const JobDetailPage = () => {
       try {
         const data = await scenarioApi.getJobLogs(scenarioId, jobId);
         setLogs(data);
-      } catch (error) { // Changed 'err' to 'error' and used it
+        
+        // Auto scroll to bottom if enabled
+        if (autoScrollRef.current && logsRef.current) {
+          logsRef.current.scrollTop = logsRef.current.scrollHeight;
+        }
+      } catch (error) {
         console.error('Error fetching logs:', error);
         setLogs('Failed to load logs');
         showNotification('warning', 'Failed to load job logs');
       }
     };
 
-    fetchLogs();
-  }, [activeTab, job, scenarioId, jobId, showNotification]); // Removed scenarioApi
+    // Set up auto-refresh for running jobs
+    let intervalId: number | undefined;
+    if (job?.status.toLowerCase() === "running" && activeTab === "logs") {
+      fetchLogs();
+      intervalId = window.setInterval(fetchLogs, 3000);
+    } else {
+      fetchLogs();
+    }
 
-  // Rest of the component remains the same
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [activeTab, job, scenarioId, jobId, showNotification]);
+
+  // Calculate and update elapsed time
+  useEffect(() => {
+    if (!job || job.status.toLowerCase() !== "running") return;
+
+    const startTime = new Date(job.startedAt).getTime();
+    const updateElapsedTime = () => {
+      const now = new Date().getTime();
+      const elapsed = now - startTime;
+      
+      const hours = Math.floor(elapsed / (1000 * 60 * 60));
+      const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
+      
+      setElapsedTime(
+        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+      );
+    };
+
+    updateElapsedTime();
+    const intervalId = window.setInterval(updateElapsedTime, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [job]);
+
   const handleCancelJob = async () => {
     if (!scenarioId || !jobId || !job || job.status.toLowerCase() !== "running")
       return;
@@ -83,12 +127,23 @@ export const JobDetailPage = () => {
 
     try {
       const data = await scenarioApi.getJobLogs(scenarioId, jobId);
-      setLogs(data); // Ensure getJobLogs returns a string
+      setLogs(data);
+      if (autoScrollRef.current && logsRef.current) {
+        logsRef.current.scrollTop = logsRef.current.scrollHeight;
+      }
       showNotification("success", "Logs refreshed successfully");
     } catch (err) {
       console.error("Error refreshing logs:", err);
       showNotification("danger", "Failed to refresh logs");
     }
+  };
+
+  const handleScroll = () => {
+    if (!logsRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = logsRef.current;
+    const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 50;
+    autoScrollRef.current = isAtBottom;
   };
 
   const getStatusColor = (status: string) => {
@@ -286,9 +341,22 @@ export const JobDetailPage = () => {
                 Refresh Logs
               </SlButton>
             </div>
-            <div className="font-mono text-sm whitespace-pre-wrap bg-gray-50 p-4 rounded-lg max-h-[600px] overflow-auto">
+            <div
+              ref={logsRef}
+              onScroll={handleScroll}
+              className="font-mono text-sm whitespace-pre-wrap bg-gray-50 p-4 rounded-lg max-h-[600px] overflow-auto"
+            >
               {logs || "No logs available"}
             </div>
+            {job.status.toLowerCase() === "running" && (
+              <div className="mt-2 text-sm text-gray-600 flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="animate-pulse mr-2 h-2 w-2 rounded-full bg-blue-500"></div>
+                  <span>Running</span>
+                </div>
+                <div>Elapsed Time: {elapsedTime}</div>
+              </div>
+            )}
           </div>
         </SlTabPanel>
       </SlTabGroup>

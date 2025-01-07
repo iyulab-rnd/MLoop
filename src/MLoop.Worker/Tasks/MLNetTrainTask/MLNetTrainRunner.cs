@@ -52,30 +52,12 @@ public class MLNetTrainRunner : IStepRunner
         var modelId = context.Variables["ModelId"]?.ToString()
             ?? throw new InvalidOperationException("ModelId not found in context");
 
-        // 1. Save model metadata
-        var model = new MLModel(
-            modelId: modelId,
-            mlType: request.Command,
-            command: request.Command,
-            arguments: request.Arguments
-        );
-
-        if (result.Metrics != null)
-        {
-            model.Metrics = result.Metrics;
-        }
-
-        var modelMetadataPath = context.GetModelMetadataPath(modelId);
-        var modelMetadataJson = JsonHelper.Serialize(model);
-        await File.WriteAllTextAsync(modelMetadataPath, modelMetadataJson);
-
-        // 2. Save metrics separately if available
-        if (result.Metrics != null)
-        {
-            var metricsPath = context.GetModelMetricsPath(modelId);
-            var metricsJson = JsonHelper.Serialize(result.Metrics);
-            await File.WriteAllTextAsync(metricsPath, metricsJson);
-        }
+        await MLNetTrainStaticMethods.SaveModelMetadataAsync(
+            modelId,
+            request.Command,
+            request.Arguments,
+            result.Metrics,
+            context.GetModelPath(modelId));
 
         _logger.LogInformation(
             "Saved model metadata and metrics for ModelId: {ModelId}, MLType: {MLType}",
@@ -110,9 +92,7 @@ public class MLNetTrainRunner : IStepRunner
             }
             else
             {
-                _logger.LogError("Unexpected args type: {ArgsType}",
-                    step.Configuration["args"]?.GetType().FullName ?? "null");
-                throw new ArgumentException($"Unexpected args type: {step.Configuration["args"]?.GetType().FullName ?? "null"}");
+                args = [];
             }
         }
         catch (Exception ex)
@@ -121,19 +101,32 @@ public class MLNetTrainRunner : IStepRunner
             throw new ArgumentException("Invalid args format in configuration", ex);
         }
 
+        var dataPath = context.Storage.GetScenarioDataDir(context.ScenarioId);
+
         // Convert relative paths to absolute paths
         if (args.TryGetValue("dataset", out var datasetPath))
         {
-            args["dataset"] = Path.Combine(
-                context.Storage.GetScenarioDataDir(context.ScenarioId),
-                datasetPath.ToString()!);
+            args["dataset"] = Path.GetFullPath(Path.Combine(
+                dataPath,
+                datasetPath.ToString()!));
+        }
+        else
+        {
+            args["dataset"] = dataPath;
         }
 
         if (args.TryGetValue("validation-dataset", out var validationPath))
         {
-            args["validation-dataset"] = Path.Combine(
-                context.Storage.GetScenarioDataDir(context.ScenarioId),
-                validationPath.ToString()!);
+            args["validation-dataset"] = Path.GetFullPath(Path.Combine(
+                dataPath,
+                validationPath.ToString()!));
+        }
+
+        if (args.TryGetValue("test-dataset", out var testPath))
+        {
+            args["test-dataset"] = Path.GetFullPath(Path.Combine(
+                dataPath,
+                testPath.ToString()!));
         }
 
         var modelId = context.Variables["ModelId"]?.ToString()

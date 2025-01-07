@@ -14,6 +14,6 @@ public class MLNetTrainProcessResult : CmdProcessResult
 
     public async Task ParseAsync(string modelPath)
     {
-        Metrics = await MLModelMetrics.ParseForMLNetAsync(modelPath);
+        Metrics = await MLNetTrainStaticMethods.GetMLModelMetricsAsync(modelPath);
     }
 }

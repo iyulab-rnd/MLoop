@@ -322,20 +322,28 @@ public class WorkerService : BackgroundService
 
         try
         {
-            var workflow = await LoadWorkflowAsync(job, context);
-
             // ModelId를 context에 추가
             if (!string.IsNullOrEmpty(job.ModelId))
             {
                 context.Variables["ModelId"] = job.ModelId;
+            }
 
-                // 모델 디렉토리 생성 (Train 작업인 경우)
-                if (job.JobType == MLJobType.Train)
+            // Job Variables 복사
+            if (job.Variables != null)
+            {
+                foreach (var kvp in job.Variables)
                 {
-                    await context.EnsureModelDirectoryExistsAsync(job.ModelId);
+                    context.Variables[kvp.Key] = kvp.Value;
                 }
             }
 
+            if (job.JobType == MLJobType.Train)
+            {
+                // 모델 디렉토리 생성 (Train 작업인 경우)
+                await context.EnsureModelDirectoryExistsAsync(job.ModelId!);
+            }
+
+            var workflow = await LoadWorkflowAsync(job, context);
             await _pipelineExecutor.ExecuteAsync(workflow, context, cancellationToken);
         }
         catch (Exception ex) when (ex is not JobProcessException)

@@ -29,6 +29,7 @@ public class MLJob
     public List<MLJobStatusHistory> StatusHistory { get; set; } = [];
     public JobFailureType FailureType { get; set; }
     public string? ModelId { get; set; }
+    public Dictionary<string, object> Variables { get; set; } = [];
 
     public void AddStatusHistory(MLJobStatus status, string? workerId = null, string? message = null)
     {

@@ -14,9 +14,9 @@ import { JobDetailPage } from './pages/JobDetailPage';
 import { ScenarioWorkflowsPage } from './pages/ScenarioWorkflowsPage';
 import { MLModelListPage } from './pages/MLModelListPage';
 import { MLModelDetailPage } from './pages/MLModelDetailPage';
-import { PredictPage } from './pages/PredictPage';
 import { PredictionsPage } from './pages/PredictionsPage';
 import { PredictionDetailPage } from './pages/PredictionDetailPage';
+import { PredictPage } from './pages/predict-page/PredictPage';
 
 setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.19.1/cdn/');
 

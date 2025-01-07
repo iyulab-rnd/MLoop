@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using MLoop.Worker.Tasks.CmdTask;
 using MLoop.Worker.Tasks.MLNetTrainTask;
-using System.Diagnostics;
 using System.Text;
 
 namespace MLoop.Worker.Tasks.MLNetPredictTask;

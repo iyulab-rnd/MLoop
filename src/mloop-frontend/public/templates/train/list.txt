@@ -1,1 +1,2 @@
 mlnet-classification.yaml
+mlnet-image-classification.yaml

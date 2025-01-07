@@ -28,21 +28,18 @@ public class MLNetTrainOptionsAdjuster
             // 필수 옵션 검증
             ValidateRequiredOptions(command, adjustedConfig.Args);
 
-            // 기본값 적용
-            ApplyDefaultOptions(command, adjustedConfig.Args);
-
-            // 경로 검증 및 정규화
-            ValidateAndNormalizePaths(command, adjustedConfig.Args);
-
-            // 옵션값 검증 
-            ValidateOptionValues(adjustedConfig.Args);
-
             // 검증 옵션 충돌 확인
             if (MLNetCommandOptions.HasValidationConflict(command, adjustedConfig.Args))
             {
                 throw new ArgumentException(
                     "Only one validation method can be specified: cv-fold, split-ratio, or validation-dataset");
             }
+
+            // 경로 검증 및 정규화
+            ValidateAndNormalizePaths(command, adjustedConfig.Args);
+
+            // 옵션값 검증 
+            ValidateOptionValues(adjustedConfig.Args);
 
             // 명령어별 추가 처리
             AdjustCommandSpecificOptions(command, adjustedConfig.Args);
@@ -75,35 +72,6 @@ public class MLNetTrainOptionsAdjuster
         {
             var missingList = string.Join(", ", missingOptions.Select(opt => $"{opt.Name} ({opt.Description})"));
             throw new ArgumentException($"Missing required options for {command}: {missingList}");
-        }
-    }
-
-    private void ApplyDefaultOptions(string command, Dictionary<string, object> args)
-    {
-        var defaults = MLNetCommandOptions.GetDefaultOptions(command);
-
-        // validation 관련 옵션이 이미 있는지 확인
-        bool hasValidationOption = args.ContainsKey("validation-dataset") ||
-                                 args.ContainsKey("cv-fold") ||
-                                 args.ContainsKey("split-ratio");
-
-        foreach (var (key, value) in defaults)
-        {
-            // validation 관련 옵션은 사용자가 지정한 것이 없을 때만 기본값 적용
-            if ((key == "validation-dataset" || key == "cv-fold" || key == "split-ratio"))
-            {
-                if (!hasValidationOption)
-                {
-                    args[key] = value;
-                }
-                continue;
-            }
-
-            // 다른 옵션들은 기존처럼 처리
-            if (!args.ContainsKey(key))
-            {
-                args[key] = value;
-            }
         }
     }
 
@@ -198,33 +166,36 @@ public class MLNetTrainOptionsAdjuster
 
     private void AdjustTraditionalMlOptions(Dictionary<string, object> args)
     {
-        // 검증 데이터 분할 방식이 지정되지 않은 경우 기본값 설정
-        if (!args.ContainsKey("validation-dataset") &&
-            !args.ContainsKey("split-ratio") &&
-            !args.ContainsKey("cv-fold"))
+        // 검증 데이터 분할 방식이 지정되지 않은 경우에만 기본값 설정
+        var hasValidationMethod = args.ContainsKey("validation-dataset") ||
+                                args.ContainsKey("split-ratio") ||
+                                args.ContainsKey("cv-fold");
+
+        if (!hasValidationMethod)
         {
-            args["split-ratio"] = "0.2";
+            args["split-ratio"] = "0.2"; // 기본 검증 세트 비율 20%
         }
 
-        // 기타 특수한 처리가 필요한 경우 여기에 추가
         _logger.LogInformation("Applied traditional ML options adjustments");
     }
 
     private void AdjustTextClassificationOptions(Dictionary<string, object> args)
     {
+        // batch-size 값 검증
         if (args.TryGetValue("batch-size", out var batchSize))
         {
-            if (!int.TryParse(batchSize.ToString(), out var size) || size <= 0)
+            if (int.TryParse(batchSize.ToString(), out var size))
             {
-                throw new ArgumentException($"Invalid batch size: {batchSize}. Must be a positive integer.");
+                if (size < 1) args["batch-size"] = "1";
             }
         }
 
+        // max-epoch 값 검증
         if (args.TryGetValue("max-epoch", out var maxEpoch))
         {
-            if (!int.TryParse(maxEpoch.ToString(), out var epochs) || epochs <= 0)
+            if (int.TryParse(maxEpoch.ToString(), out var epochs))
             {
-                throw new ArgumentException($"Invalid max epoch: {maxEpoch}. Must be a positive integer.");
+                if (epochs < 1) args["max-epoch"] = "1";
             }
         }
 
@@ -233,13 +204,14 @@ public class MLNetTrainOptionsAdjuster
 
     private void AdjustImageClassificationOptions(Dictionary<string, object> args)
     {
+        // 이미지 크기 값 검증
         foreach (var dim in new[] { "image-width", "image-height" })
         {
             if (args.TryGetValue(dim, out var value))
             {
-                if (!int.TryParse(value.ToString(), out var size) || size <= 0)
+                if (int.TryParse(value.ToString(), out var size))
                 {
-                    throw new ArgumentException($"Invalid {dim}: {value}. Must be a positive integer.");
+                    if (size < 32) args[dim] = "32"; // 최소 이미지 크기 제한
                 }
             }
         }
@@ -249,16 +221,46 @@ public class MLNetTrainOptionsAdjuster
 
     private void AdjustObjectDetectionOptions(Dictionary<string, object> args)
     {
+        // 임계값 범위 검증
         foreach (var threshold in new[] { "score-threshold", "iou-threshold" })
         {
             if (args.TryGetValue(threshold, out var value))
             {
-                if (!float.TryParse(value.ToString(), out var thresholdValue) ||
-                    thresholdValue < 0 || thresholdValue > 1)
+                if (float.TryParse(value.ToString(), out var thresholdValue))
                 {
-                    throw new ArgumentException(
-                        $"Invalid {threshold}: {value}. Must be between 0 and 1.");
+                    if (thresholdValue < 0) args[threshold] = "0";
+                    if (thresholdValue > 1) args[threshold] = "1";
                 }
+            }
+        }
+
+        // width/height 값 검증 
+        foreach (var dim in new[] { "width", "height" })
+        {
+            if (args.TryGetValue(dim, out var value))
+            {
+                if (int.TryParse(value.ToString(), out var size))
+                {
+                    if (size < 32) args[dim] = "32"; // 최소 크기 제한
+                }
+            }
+        }
+
+        // batch-size 값 검증
+        if (args.TryGetValue("batch-size", out var batchSize))
+        {
+            if (int.TryParse(batchSize.ToString(), out var size))
+            {
+                if (size < 1) args["batch-size"] = "1";
+            }
+        }
+
+        // epoch 값 검증
+        if (args.TryGetValue("epoch", out var epoch))
+        {
+            if (int.TryParse(epoch.ToString(), out var epochs))
+            {
+                if (epochs < 1) args["epoch"] = "1";
             }
         }
 
@@ -267,20 +269,38 @@ public class MLNetTrainOptionsAdjuster
 
     private void AdjustRecommendationOptions(Dictionary<string, object> args)
     {
-        // 추천 시스템 특화 옵션 처리
-        // 예: 사용자-아이템 상호작용 데이터 검증 등
+        // 검증 데이터 분할 방식이 지정되지 않은 경우에만 기본값 설정
+        var hasValidationMethod = args.ContainsKey("validation-dataset") ||
+                                args.ContainsKey("split-ratio") ||
+                                args.ContainsKey("cv-fold");
+
+        if (!hasValidationMethod)
+        {
+            args["split-ratio"] = "0.2";
+        }
+
         _logger.LogInformation("Applied recommendation options adjustments");
     }
 
     private void AdjustForecastingOptions(Dictionary<string, object> args)
     {
+        // horizon 값 검증
         if (args.TryGetValue("horizon", out var horizon))
         {
-            if (!int.TryParse(horizon.ToString(), out var periods) || periods <= 0)
+            if (int.TryParse(horizon.ToString(), out var periods))
             {
-                throw new ArgumentException(
-                    $"Invalid horizon: {horizon}. Must be a positive integer.");
+                if (periods < 1) args["horizon"] = "1";
             }
+        }
+
+        // 검증 데이터 분할 방식이 지정되지 않은 경우에만 기본값 설정
+        var hasValidationMethod = args.ContainsKey("validation-dataset") ||
+                                args.ContainsKey("split-ratio") ||
+                                args.ContainsKey("cv-fold");
+
+        if (!hasValidationMethod)
+        {
+            args["split-ratio"] = "0.2";
         }
 
         _logger.LogInformation("Applied forecasting options adjustments");

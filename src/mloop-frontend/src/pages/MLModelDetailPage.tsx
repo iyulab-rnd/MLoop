@@ -12,6 +12,8 @@ import { Model } from '../types/Model';
 import { scenarioApi } from '../api/scenarios';
 import { useNotification } from "../hooks/useNotification";
 
+import { formatTime } from '../utils/time';
+
 export const MLModelDetailPage = () => {
   const { showNotification } = useNotification();
   const { scenarioId, modelId } = useParams();
@@ -40,7 +42,7 @@ export const MLModelDetailPage = () => {
     };
 
     fetchModelDetails();
-  }, [scenarioId, modelId, showNotification]); // Removed scenarioApi
+  }, [scenarioId, modelId, showNotification]);
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -49,7 +51,7 @@ export const MLModelDetailPage = () => {
       try {
         const data = await scenarioApi.getModelLogs(scenarioId, modelId);
         setLogs(data);
-      } catch (err) { // Changed err to _ to indicate unused parameter
+      } catch (err) {
         console.error(err);
         setLogs('Failed to load logs');
         showNotification('warning', 'Failed to load model logs');
@@ -57,14 +59,14 @@ export const MLModelDetailPage = () => {
     };
 
     fetchLogs();
-  }, [activeTab, model, scenarioId, modelId, showNotification]); // Removed scenarioApi
+  }, [activeTab, model, scenarioId, modelId, showNotification]);
 
-  const handleRefreshLogs = async () => { // Define the missing function
+  const handleRefreshLogs = async () => {
     if (!scenarioId || !modelId || !model || activeTab !== 'logs') return;
 
     try {
       const data = await scenarioApi.getModelLogs(scenarioId, modelId);
-      setLogs(data); // Ensure getModelLogs returns a string
+      setLogs(data);
       showNotification('success', 'Logs refreshed successfully');
     } catch (err) {
       console.error(err);
@@ -77,7 +79,7 @@ export const MLModelDetailPage = () => {
       return `${(value * 100).toFixed(2)}%`;
     } 
     if (key.toLowerCase().includes('time') || key.toLowerCase().includes('runtime')) {
-      return `${value.toFixed(2)}s`;
+      return formatTime(value);
     }
     return Number.isInteger(value) ? value.toString() : value.toFixed(4);
   };

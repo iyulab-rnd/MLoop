@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MLoop.Api.Services;
 using MLoop.Models.Jobs;
+using MLoop.Services;
 using MLoop.Storages;
 
 namespace MLoop.Api.Controllers;
@@ -91,6 +92,72 @@ public class PredictionsController : ControllerBase
         {
             _logger.LogError(ex, "Error creating prediction for scenario {ScenarioId}", scenarioId);
             return StatusCode(500, "Error creating prediction");
+        }
+    }
+
+    [HttpPost("image-classification")]
+    public async Task<IActionResult> CreateImageClassificationPrediction(
+        string scenarioId,
+        [FromForm] IFormFile file,
+        [FromQuery] string? modelId = null)
+    {
+        try
+        {
+            // 1. 모델 검증 및 선택
+            var selectedModel = modelId != null
+                ? await _modelService.GetModelAsync(scenarioId, modelId)
+                : await _modelService.GetBestModelAsync(scenarioId);
+
+            if (selectedModel == null)
+            {
+                var message = modelId != null
+                    ? $"Model {modelId} not found"
+                    : "No trained models found for this scenario";
+                return NotFound(new { message });
+            }
+
+            // MLType이 image-classification인지 확인
+            if (selectedModel.MLType != "image-classification")
+            {
+                return BadRequest(new { message = "Selected model is not an image classification model" });
+            }
+
+            // 2. 예측 ID 생성 및 디렉토리 준비
+            var predictionId = Guid.NewGuid().ToString("N");
+            var predictionDir = _storage.GetPredictionDir(scenarioId, predictionId);
+            Directory.CreateDirectory(predictionDir);
+
+            // 3. 파일 저장
+            var fileName = Path.GetFileName(file.FileName);
+            var filePath = Path.Combine(predictionDir, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            // 4. 예측 작업 생성
+            await _jobService.CreatePredictionJobAsync(
+                scenarioId,
+                selectedModel.ModelId,
+                predictionId,
+                new Dictionary<string, object>
+                {
+                    ["fileName"] = fileName
+                });
+
+            return Ok(new
+            {
+                predictionId,
+                modelId = selectedModel.ModelId,
+                fileName,
+                isUsingBestModel = modelId == null
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating image classification prediction for scenario {ScenarioId}", scenarioId);
+            return StatusCode(500, new { message = "Error creating prediction" });
         }
     }
 

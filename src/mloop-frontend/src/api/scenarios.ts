@@ -191,8 +191,8 @@ export const scenarioApi = {
   getPredictionResult: async (
     scenarioId: string,
     predictionId: string
-  ): Promise<Record<string, string | number>> => {
-    return api.get<Record<string, string | number>>(
+  ): Promise<string> => {
+    return api.get<string>(
       `/api/scenarios/${scenarioId}/predictions/${predictionId}`
     );
   },

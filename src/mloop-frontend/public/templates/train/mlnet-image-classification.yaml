@@ -1,0 +1,13 @@
+steps:
+  - name: train
+    type: mlnet-train
+    config:
+      command: image-classification
+      args:
+        # If you only have train data, you can omit dataset.
+        # /data/<category>/<image-filename>
+        # dataset: .
+        # /data/train/<category>/<image-filename>
+        # dataset: train
+        # /data/test/<category>/<image-filename>
+        # test-dataset: test

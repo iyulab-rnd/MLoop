@@ -7,6 +7,8 @@ import { scenarioApi } from "../api/scenarios";
 import { useNotification } from "../hooks/useNotification";
 import { ApiError } from "../api/client";
 
+import { formatTime } from '../utils/time';
+
 type ScenarioContextType = {
   scenario: Scenario;
 };
@@ -64,7 +66,7 @@ export const MLModelListPage = () => {
       setCleanupInProgress(true);
       const result: { message?: string } = await scenarioApi.cleanupModels(
         scenario.scenarioId
-      ); // Define the expected type
+      );
       showNotification(
         "success",
         result.message || "Models cleaned up successfully"
@@ -181,7 +183,7 @@ export const MLModelListPage = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {model.metrics.BestRuntime.toFixed(2)}s
+                      {formatTime(model.metrics.BestRuntime)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

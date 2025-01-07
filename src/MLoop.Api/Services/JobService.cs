@@ -149,7 +149,7 @@ public partial class JobService
 
     public async Task CancelJobAsync(string scenarioId, string jobId)
     {
-        var job = await GetJobStatusAsync(scenarioId, jobId) 
+        var job = await GetJobStatusAsync(scenarioId, jobId)
             ?? throw new KeyNotFoundException($"Job {jobId} not found in scenario {scenarioId}");
 
         if (job.Status is MLJobStatus.Completed or MLJobStatus.Failed)
@@ -229,6 +229,46 @@ public partial class JobService
             _logger.LogError(ex,
                 "Failed to get prediction job status for scenario {ScenarioId}, prediction {PredictionId}",
                 scenarioId, predictionId);
+            throw;
+        }
+    }
+
+    public async Task<string> CreatePredictionJobAsync(
+        string scenarioId,
+        string modelId,
+        string predictionId,
+        Dictionary<string, object>? variables = null)
+    {
+        try
+        {
+            var job = new MLJob
+            {
+                JobId = predictionId,
+                ScenarioId = scenarioId,
+                Status = MLJobStatus.Waiting,
+                CreatedAt = DateTime.UtcNow,
+                JobType = MLJobType.Predict,
+                ModelId = modelId
+            };
+
+            if (variables != null)
+            {
+                job.Variables = variables;
+            }
+
+            await _jobManager.SaveJobStatusAsync(job);
+
+            _logger.LogInformation(
+                "Created prediction job {JobId} for scenario {ScenarioId} using model {ModelId}",
+                job.JobId, scenarioId, modelId);
+
+            return job.JobId;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to create prediction job for scenario {ScenarioId}, model {ModelId}",
+                scenarioId, modelId);
             throw;
         }
     }
