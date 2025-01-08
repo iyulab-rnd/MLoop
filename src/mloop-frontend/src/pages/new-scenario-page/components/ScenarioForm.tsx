@@ -1,6 +1,7 @@
 import {
   SlButton,
   SlInput,
+  SlOption,
   SlSelect,
   SlTextarea,
 } from "@shoelace-style/shoelace/dist/react";
@@ -59,10 +60,15 @@ export const ScenarioForm: React.FC<ScenarioFormProps> = ({
           }
           required
         >
-          <option value="">Select ML type</option>
-          <option value="classification">Classification</option>
-          <option value="regression">Regression</option>
-          <option value="image-classification">Image Classification</option>
+          <SlOption value="">Select ML type</SlOption>
+          <SlOption value="classification">Classification</SlOption>
+          <SlOption value="regression">Regression</SlOption>
+          <SlOption value="recommendation">Recommendation</SlOption>
+          <SlOption value="image-classification">Image Classification</SlOption>
+          <SlOption value="text-classification">Text Classification</SlOption>
+          <SlOption value="forecasting">Forecasting</SlOption>
+          <SlOption value="object-detection">Object Detection</SlOption>
+          <SlOption value="anomaly-detection">Anomaly Detection</SlOption>
         </SlSelect>
       </div>
 

@@ -10,7 +10,7 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({
   return (
     <div>
       <h2 className="text-lg font-medium mb-4">Results</h2>
-      <div className="border rounded-lg h-[600px] bg-white p-4 overflow-auto">
+      <div className="border rounded-lg h-[400px] bg-white p-4 overflow-auto">
         {predicting ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">

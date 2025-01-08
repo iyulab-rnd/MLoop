@@ -26,7 +26,7 @@ export const TextInputPanel: React.FC<TextInputPanelProps> = ({ input, setInput,
       </div>
       <div className="border rounded-lg overflow-hidden">
         <Editor
-          height="600px"
+          height="400px"
           defaultLanguage="text"
           value={input}
           onChange={(value) => {
