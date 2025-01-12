@@ -35,6 +35,17 @@ MLoop는 지속적인 모델 개선 파이프라인을 구축합니다. 다양한 트리거(시간 기반, 데�
 - Docker (컨테이너 배포 시)
 - Azure Storage Account (선택사항 - 스케일링 큐 사용 시)
 
+## ML 시나리오
+
+- Classification(분류)  
+- Regression(회귀)  
+- Recommendation(추천)  
+- Image Classification(이미지 분류)  
+- Text Classification(텍스트 분류)  
+- Forecasting(예측)  
+- Object Detection(물체 감지)
+- Anomaly Detection(이상 탐지)
+
 ## 설치 방법
 
 ### Docker를 이용한 설치
