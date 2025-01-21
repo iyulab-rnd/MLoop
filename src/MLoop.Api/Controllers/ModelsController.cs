@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using MLoop.Api.Services;
-using MLoop.Services;
-using MLoop.Storages;
+using MLoop.Api.Models.Scenarios;
 
 namespace MLoop.Api.Controllers;
 
@@ -10,22 +8,16 @@ namespace MLoop.Api.Controllers;
 public class ModelsController : ControllerBase
 {
     private readonly ModelService _modelService;
-    private readonly ScenarioManager _scenarioManager;
-    private readonly JobService _jobService;
-    private readonly IFileStorage _storage;
+    private readonly ScenarioService _scenarioService;
     private readonly ILogger<ModelsController> _logger;
 
     public ModelsController(
         ModelService modelService,
-        ScenarioManager scenarioManager,
-        JobService jobService,
-        IFileStorage storage,
+        ScenarioService scenarioService,
         ILogger<ModelsController> logger)
     {
         _modelService = modelService;
-        _scenarioManager = scenarioManager;
-        _jobService = jobService;
-        _storage = storage;
+        _scenarioService = scenarioService;
         _logger = logger;
     }
 
@@ -37,14 +29,10 @@ public class ModelsController : ControllerBase
             var models = await _modelService.GetModelsAsync(scenarioId);
             return Ok(models);
         }
-        catch (KeyNotFoundException)
-        {
-            return NotFound();
-        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving models for scenario {ScenarioId}", scenarioId);
-            return StatusCode(500, "Internal server error");
+            return StatusCode(500, new { error = "Error retrieving models" });
         }
     }
 
@@ -53,15 +41,15 @@ public class ModelsController : ControllerBase
     {
         try
         {
-            var model = await _modelService.GetModelAsync(scenarioId, modelId);
+            var model = await _modelService.GetAsync(scenarioId, modelId);
             if (model == null)
-                return NotFound();
+                return NotFound(new { error = $"Model {modelId} not found in scenario {scenarioId}" });
             return Ok(model);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving model {ModelId} for scenario {ScenarioId}", modelId, scenarioId);
-            return StatusCode(500, "Internal server error");
+            _logger.LogError(ex, "Error retrieving model {ModelId} in scenario {ScenarioId}", modelId, scenarioId);
+            return StatusCode(500, new { error = "Error retrieving model" });
         }
     }
 
@@ -72,13 +60,13 @@ public class ModelsController : ControllerBase
         {
             var logs = await _modelService.GetModelTrainLogsAsync(scenarioId, modelId);
             if (logs == null)
-                return NotFound();
+                return NotFound(new { error = "Training logs not found" });
             return Ok(logs);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving train logs for model {ModelId} in scenario {ScenarioId}", modelId, scenarioId);
-            return StatusCode(500, "Internal server error");
+            return StatusCode(500, new { error = "Error retrieving training logs" });
         }
     }
 
@@ -89,13 +77,13 @@ public class ModelsController : ControllerBase
         {
             var metrics = await _modelService.GetModelMetricsAsync(scenarioId, modelId);
             if (metrics == null)
-                return NotFound();
+                return NotFound(new { error = "Model metrics not found" });
             return Ok(metrics);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving metrics for model {ModelId} in scenario {ScenarioId}", modelId, scenarioId);
-            return StatusCode(500, "Internal server error");
+            return StatusCode(500, new { error = "Error retrieving model metrics" });
         }
     }
 
@@ -104,17 +92,19 @@ public class ModelsController : ControllerBase
     {
         try
         {
-            // 최고 성능 모델 찾기
             var bestModel = await _modelService.GetBestModelAsync(scenarioId);
             if (bestModel == null)
-                return NotFound(new { message = "No models found" });
+                return NotFound(new { error = "No models found in scenario" });
 
-            // 시나리오 메타데이터 업데이트
-            var scenario = await _scenarioManager.LoadScenarioAsync(scenarioId);
+            // 시나리오 메타데이터의 BestModelId 업데이트
+            var scenario = await _scenarioService.GetAsync(scenarioId);
             if (scenario != null && scenario.BestModelId != bestModel.ModelId)
             {
-                scenario.BestModelId = bestModel.ModelId;
-                await _scenarioManager.SaveScenarioAsync(scenarioId, scenario);
+                await _scenarioService.UpdateAsync(scenarioId, new UpdateScenarioRequest
+                {
+                    BestModelId = bestModel.ModelId
+                });
+
                 _logger.LogInformation(
                     "Updated best model ID to {ModelId} for scenario {ScenarioId}",
                     bestModel.ModelId, scenarioId);
@@ -125,7 +115,26 @@ public class ModelsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving best model for scenario {ScenarioId}", scenarioId);
-            return StatusCode(500, new { message = "Internal server error while retrieving best model" });
+            return StatusCode(500, new { error = "Error retrieving best model" });
+        }
+    }
+
+    [HttpDelete("{modelId}")]
+    public async Task<IActionResult> DeleteModel(string scenarioId, string modelId)
+    {
+        try
+        {
+            var model = await _modelService.GetAsync(scenarioId, modelId);
+            if (model == null)
+                return NotFound(new { error = $"Model {modelId} not found in scenario {scenarioId}" });
+
+            await _modelService.DeleteAsync(scenarioId, modelId);
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting model {ModelId} in scenario {ScenarioId}", modelId, scenarioId);
+            return StatusCode(500, new { error = "Error deleting model" });
         }
     }
 
@@ -137,28 +146,54 @@ public class ModelsController : ControllerBase
             var bestModel = await _modelService.GetBestModelAsync(scenarioId);
             if (bestModel == null)
             {
-                return NotFound(new { message = "No models found" });
+                return NotFound(new { error = "No models found in scenario" });
             }
 
-            var modelsDir = _storage.GetScenarioModelsDir(scenarioId);
-            var modelDirs = Directory.GetDirectories(modelsDir);
+            var models = await _modelService.GetModelsAsync(scenarioId);
+            var modelsToDelete = models.Where(m => m.ModelId != bestModel.ModelId);
+            var deletedCount = 0;
 
-            foreach (var modelDir in modelDirs)
+            foreach (var model in modelsToDelete)
             {
-                var modelId = Path.GetFileName(modelDir);
-                if (modelId != bestModel.ModelId)
-                {
-                    Directory.Delete(modelDir, true);
-                    _logger.LogInformation("Deleted model {ModelId}", modelId);
-                }
+                await _modelService.DeleteAsync(scenarioId, model.ModelId);
+                deletedCount++;
             }
 
-            return Ok(new { message = "Non-best models cleaned up successfully" });
+            return Ok(new
+            {
+                message = "Non-best models cleaned up successfully",
+                bestModelId = bestModel.ModelId,
+                deletedCount = deletedCount
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error cleaning up models for scenario {ScenarioId}", scenarioId);
-            return StatusCode(500, new { message = "Error cleaning up models" });
+            return StatusCode(500, new { error = "Error cleaning up models" });
+        }
+    }
+
+    [HttpPost("{modelId}/validate")]
+    public async Task<IActionResult> ValidateModel(string scenarioId, string modelId)
+    {
+        try
+        {
+            var model = await _modelService.GetAsync(scenarioId, modelId);
+            if (model == null)
+                return NotFound(new { error = $"Model {modelId} not found in scenario {scenarioId}" });
+
+            // 모델 파일 존재 여부, 메타데이터 유효성 등 검증
+            var validationResult = await _modelService.ValidateModelAsync(scenarioId, modelId);
+            return Ok(validationResult);
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error validating model {ModelId} in scenario {ScenarioId}", modelId, scenarioId);
+            return StatusCode(500, new { error = "Error validating model" });
         }
     }
 }

@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc.Formatters;
-using System.Text;
 
 namespace MLoop.Api.InputFormatters;
 
@@ -9,28 +8,38 @@ public class YamlInputFormatter : InputFormatter
     {
         SupportedMediaTypes.Add("text/yaml");
         SupportedMediaTypes.Add("application/x-yaml");
+        SupportedMediaTypes.Add("application/yaml");
     }
 
     public override bool CanRead(InputFormatterContext context)
     {
-        return true;
+        if (context == null) throw new ArgumentNullException(nameof(context));
+
+        var contentType = context.HttpContext.Request.ContentType;
+        return contentType?.Contains("yaml") ?? false;
     }
 
     public override async Task<InputFormatterResult> ReadRequestBodyAsync(InputFormatterContext context)
     {
-        using var reader = new StreamReader(context.HttpContext.Request.Body);
-
-        // ReadToEnd()로 원본 텍스트 그대로 유지
-        var yaml = await reader.ReadToEndAsync();
-
-        // YAML 타입인 경우 문자열 그대로 반환
-        if (context.ModelType == typeof(string))
+        try
         {
-            return await InputFormatterResult.SuccessAsync(yaml);
-        }
+            using var reader = new StreamReader(context.HttpContext.Request.Body);
+            var yaml = await reader.ReadToEndAsync();
 
-        // 다른 타입인 경우 YamlHelper를 통해 역직렬화
-        var result = YamlHelper.Deserialize(yaml, context.ModelType);
-        return await InputFormatterResult.SuccessAsync(result);
+            // string 타입이면 직접 반환
+            if (context.ModelType == typeof(string))
+            {
+                return await InputFormatterResult.SuccessAsync(yaml);
+            }
+
+            var result = YamlHelper.Deserialize(yaml, context.ModelType);
+            return await InputFormatterResult.SuccessAsync(result);
+        }
+        catch (Exception ex)
+        {
+            var logger = context.HttpContext.RequestServices.GetService<ILogger<YamlInputFormatter>>();
+            logger?.LogError(ex, "Error parsing YAML request");
+            return await InputFormatterResult.FailureAsync();
+        }
     }
 }

@@ -48,7 +48,7 @@ public class WorkflowContext
         => Storage.GetJobLogsPath(ScenarioId, JobId);
 
     public string GetModelMetadataPath(string modelId)
-        => Path.Combine(GetModelPath(modelId), "metadata.json");
+        => Path.Combine(GetModelPath(modelId), "model.json");
 
     public string GetModelPath(string modelId)
         => Storage.GetModelPath(ScenarioId, modelId);

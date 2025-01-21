@@ -20,7 +20,7 @@ public class FileController : ControllerBase
         _contentTypeProvider = new FileExtensionContentTypeProvider();
     }
 
-    private async Task EnsureDirectoryExistsAsync(string directoryPath)
+    private static async Task EnsureDirectoryExistsAsync(string directoryPath)
     {
         if (!Directory.Exists(directoryPath))
         {
@@ -48,20 +48,20 @@ public class FileController : ControllerBase
     }
 
     [HttpGet("{*filePath}")]
-    public async Task<IActionResult> GetFile(string scenarioId, string filePath)
+    public Task<IActionResult> GetFile(string scenarioId, string filePath)
     {
         try
         {
             var validationResult = _storage.ValidateAndGetFullPath(scenarioId, filePath);
             if (!validationResult.isValid)
             {
-                return BadRequest(validationResult.error);
+                return Task.FromResult<IActionResult>(BadRequest(validationResult.error));
             }
 
             var fullPath = validationResult.fullPath!;
             if (!System.IO.File.Exists(fullPath))
             {
-                return NotFound("File not found.");
+                return Task.FromResult<IActionResult>(NotFound("File not found."));
             }
 
             var fileName = Path.GetFileName(fullPath);
@@ -71,34 +71,34 @@ public class FileController : ControllerBase
             }
 
             var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
-            return new FileStreamResult(fileStream, contentType)
+            return Task.FromResult<IActionResult>(new FileStreamResult(fileStream, contentType)
             {
                 FileDownloadName = fileName
-            };
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting file {FilePath} for scenario {ScenarioId}", filePath, scenarioId);
-            return StatusCode(500, "Error occurred while getting the file.");
+            return Task.FromResult<IActionResult>(StatusCode(500, "Error occurred while getting the file."));
         }
     }
 
     [HttpPost]
     public async Task<IActionResult> UploadFiles(string scenarioId, [FromQuery] string? path, List<IFormFile> files)
     {
-        if (files == null || !files.Any())
+        if (files == null || files.Count == 0)
             return BadRequest("No files to upload.");
 
         // Validate target path
         string targetDir = _storage.GetScenarioDataDir(scenarioId);
         if (!string.IsNullOrEmpty(path))
         {
-            var validationResult = _storage.ValidateAndGetFullPath(scenarioId, path);
-            if (!validationResult.isValid)
+            var (isValid, fullPath, error) = _storage.ValidateAndGetFullPath(scenarioId, path);
+            if (!isValid)
             {
-                return BadRequest(validationResult.error);
+                return BadRequest(error);
             }
-            targetDir = validationResult.fullPath!;
+            targetDir = fullPath!;
         }
 
         var uploadResults = new List<object>();
@@ -139,7 +139,7 @@ public class FileController : ControllerBase
         return Ok(uploadResults);
     }
 
-    private async Task<string> GetUniqueFilePathAsync(string directory, string fileName)
+    private static async Task<string> GetUniqueFilePathAsync(string directory, string fileName)
     {
         var filePath = Path.Combine(directory, fileName);
         string uniqueFilePath = filePath;
@@ -183,7 +183,7 @@ public class FileController : ControllerBase
         }
     }
 
-    private async Task DeleteFileOrDirectoryAsync(string path)
+    private static async Task DeleteFileOrDirectoryAsync(string path)
     {
         var attr = await Task.Run(() => System.IO.File.GetAttributes(path));
         if ((attr & FileAttributes.Directory) == FileAttributes.Directory)

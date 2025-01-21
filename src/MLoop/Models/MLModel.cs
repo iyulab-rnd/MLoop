@@ -2,9 +2,10 @@
 
 namespace MLoop.Models;
 
-public class MLModel
+public class MLModel : IScenarioEntity
 {
-    [Required]
+    public string ScenarioId { get; set; } = string.Empty;
+
     public string ModelId { get; set; } = string.Empty;
 
     [Required]

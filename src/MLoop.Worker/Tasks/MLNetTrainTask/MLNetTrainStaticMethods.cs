@@ -27,7 +27,7 @@ public static class MLNetTrainStaticMethods
             model.Metrics = metrics;
         }
 
-        var modelMetadataPath = Path.Combine(modelPath, "metadata.json");
+        var modelMetadataPath = Path.Combine(modelPath, "model.json");
         var modelMetadataJson = JsonHelper.Serialize(model);
         await File.WriteAllTextAsync(modelMetadataPath, modelMetadataJson);
 

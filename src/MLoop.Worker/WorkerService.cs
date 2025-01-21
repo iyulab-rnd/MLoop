@@ -2,12 +2,13 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MLoop.Models.Jobs;
-using MLoop.Services;
 using MLoop.Worker.Configuration;
 using MLoop.Worker.Pipeline;
 using Microsoft.Extensions.Configuration;
 using MLoop.Storages;
 using MLoop.Models.Workflows;
+using MLoop.Worker.Services;
+using MLoop.Services;
 
 namespace MLoop.Worker;
 
@@ -372,17 +373,17 @@ public class WorkerService : BackgroundService
             return new WorkflowConfig
             {
                 Steps =
-            {
-                new WorkflowStepConfig
                 {
-                    Name = "predict",
-                    Type = "mlnet-predict",
-                    Config = new Dictionary<string, object>
+                    new WorkflowStepConfig
                     {
-                        ["model-id"] = job.ModelId ?? throw new InvalidOperationException("ModelId is required for prediction")
+                        Name = "predict",
+                        Type = "mlnet-predict",
+                        Config = new Dictionary<string, object>
+                        {
+                            ["model-id"] = job.ModelId ?? throw new InvalidOperationException("ModelId is required for prediction")
+                        }
                     }
                 }
-            }
             };
         }
 

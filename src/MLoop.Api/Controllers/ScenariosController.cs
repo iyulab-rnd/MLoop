@@ -1,10 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.OData.Query.Validator;
 using Microsoft.AspNetCore.OData.Query;
-using MLoop.Api.Models;
-using MLoop.Api.Services;
+using Microsoft.AspNetCore.OData.Query.Validator;
+using MLoop.Api.Models.Scenarios;
 using MLoop.Models;
-using MLoop.Storages;
 
 namespace MLoop.Api.Controllers;
 
@@ -13,26 +11,25 @@ namespace MLoop.Api.Controllers;
 public class ScenariosController : ControllerBase
 {
     private readonly ScenarioService _scenarioService;
-    private readonly IFileStorage _storage;
     private readonly ILogger<ScenariosController> _logger;
 
     public ScenariosController(
         ScenarioService scenarioService,
-        IFileStorage storage,
         ILogger<ScenariosController> logger)
     {
         _scenarioService = scenarioService;
-        _storage = storage;
         _logger = logger;
     }
 
     [HttpGet]
     [EnableQuery]
-    public async Task<IActionResult> GetScenarios(ODataQueryOptions<ScenarioMetadata> queryOptions)
+    public async Task<IActionResult> GetScenarios(ODataQueryOptions<MLScenario> queryOptions)
     {
         try
         {
-            var scenarios = await _scenarioService.GetScenariosAsync();
+            var scenarios = await _scenarioService.GetAllScenariosAsync();
+
+            // OData 옵션 검증
             var validationSettings = new ODataValidationSettings
             {
                 MaxTop = 100,
@@ -53,8 +50,8 @@ public class ScenariosController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing query");
-            return BadRequest($"Error processing query: {ex.Message}");
+            _logger.LogError(ex, "Error retrieving scenarios");
+            return StatusCode(500, new { error = "Error retrieving scenarios" });
         }
     }
 
@@ -63,18 +60,20 @@ public class ScenariosController : ControllerBase
     {
         try
         {
-            var scenario = await _scenarioService.CreateScenarioAsync(request);
-            return CreatedAtAction(nameof(GetScenario), new { scenarioId = scenario.ScenarioId }, scenario);
+            var scenario = await _scenarioService.CreateAsync(request);
+            return CreatedAtAction(
+                nameof(GetScenario),
+                new { scenarioId = scenario.ScenarioId },
+                scenario);
         }
-        catch (ArgumentException ex)
+        catch (ValidationException ex)
         {
-            _logger.LogError(ex, "Invalid scenario creation request");
-            return BadRequest(ex.Message);
+            return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating scenario");
-            return StatusCode(500, "Internal server error");
+            return StatusCode(500, new { error = "Error creating scenario" });
         }
     }
 
@@ -83,40 +82,38 @@ public class ScenariosController : ControllerBase
     {
         try
         {
-            var scenario = await _scenarioService.GetScenarioAsync(scenarioId);
+            var scenario = await _scenarioService.GetAsync(scenarioId);
             if (scenario == null)
-                return NotFound();
+                return NotFound(new { error = $"Scenario {scenarioId} not found" });
             return Ok(scenario);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving scenario {ScenarioId}", scenarioId);
-            return StatusCode(500, "Internal server error");
+            return StatusCode(500, new { error = "Error retrieving scenario" });
         }
     }
 
     [HttpPut("{scenarioId}")]
-    public async Task<IActionResult> UpdateScenario(string scenarioId, [FromBody] CreateScenarioRequest request)
+    public async Task<IActionResult> UpdateScenario(string scenarioId, [FromBody] UpdateScenarioRequest request)
     {
         try
         {
-            await _scenarioService.UpdateScenarioAsync(scenarioId, request);
-            var updatedScenario = await _scenarioService.GetScenarioAsync(scenarioId);
-            return Ok(updatedScenario);
+            var scenario = await _scenarioService.UpdateAsync(scenarioId, request);
+            return Ok(scenario);
         }
         catch (KeyNotFoundException)
         {
-            return NotFound();
+            return NotFound(new { error = $"Scenario {scenarioId} not found" });
         }
-        catch (ArgumentException ex)
+        catch (ValidationException ex)
         {
-            _logger.LogError(ex, "Invalid scenario update request");
-            return BadRequest(ex.Message);
+            return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating scenario {ScenarioId}", scenarioId);
-            return StatusCode(500, "Internal server error");
+            return StatusCode(500, new { error = "Error updating scenario" });
         }
     }
 
@@ -125,80 +122,91 @@ public class ScenariosController : ControllerBase
     {
         try
         {
-            var scenario = await _scenarioService.GetScenarioAsync(scenarioId);
+            var scenario = await _scenarioService.GetAsync(scenarioId);
             if (scenario == null)
-                return NotFound();
+                return NotFound(new { error = $"Scenario {scenarioId} not found" });
 
-            await _scenarioService.DeleteScenarioAsync(scenarioId);
+            await _scenarioService.DeleteAsync(scenarioId);
             return NoContent();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting scenario {ScenarioId}", scenarioId);
-            return StatusCode(500, "Internal server error");
+            return StatusCode(500, new { error = "Error deleting scenario" });
         }
     }
 
     [HttpPost("{scenarioId}/train")]
-    public async Task<IActionResult> Train(string scenarioId)
+    [HttpPost("{scenarioId}/train/{workflowName}")]  // 두 라우트 지원
+    public async Task<IActionResult> Train(string scenarioId, string? workflowName = "default_train")
     {
         try
         {
-            // 필수 조건 검증
-            var validationResult = await ValidateTrainingPrerequisites(scenarioId);
-            if (!validationResult.IsValid)
+            var (jobId, status) = await _scenarioService.CreateTrainJobAsync(scenarioId, workflowName);
+            return Ok(new
             {
-                return BadRequest(validationResult.ErrorMessage);
-            }
-
-            var scenario = await _scenarioService.GetScenarioAsync(scenarioId);
-            if (scenario == null)
-                return NotFound("Scenario not found");
-
-            var r = await _scenarioService.CreateTrainJobAsync(scenarioId);
-            return Ok(new { r.jobId, r.status });
+                jobId,
+                status = status.ToString(),
+                workflowName
+            });
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new { error = $"Scenario {scenarioId} not found" });
+        }
+        catch (WorkflowNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating train job for scenario {ScenarioId}", scenarioId);
-            return BadRequest(ex.Message);
+            return StatusCode(500, new { error = "Error creating training job" });
         }
     }
 
-    private async Task<RequestValidationResult> ValidateTrainingPrerequisites(string scenarioId)
+    [HttpGet("{scenarioId}/train/validate")]
+    public async Task<IActionResult> ValidateTrainingPrerequisites(string scenarioId)
     {
-        var scenarioBaseDir = _storage.GetScenarioBaseDir(scenarioId);
-
-        // 데이터 파일 존재 여부 확인
-        var dataDir = Path.Combine(scenarioBaseDir, "data");
-        if (!Directory.Exists(dataDir) || !Directory.EnumerateFiles(dataDir).Any())
-        {
-            return RequestValidationResult.Fail("No data files found. Please upload data files before starting training.");
-        }
-
-        // train.yaml 파일 존재 여부 확인
-        var workflowsDir = Path.Combine(scenarioBaseDir, "workflows");
-        var trainWorkflowPath = Path.Combine(workflowsDir, "train.yaml");
-        if (!System.IO.File.Exists(trainWorkflowPath))
-        {
-            return RequestValidationResult.Fail("Training workflow (train.yaml) not found. Please create training workflow first.");
-        }
-
-        // train.yaml 파일 내용 검증
         try
         {
-            var yamlContent = await System.IO.File.ReadAllTextAsync(trainWorkflowPath);
-            if (string.IsNullOrWhiteSpace(yamlContent))
+            var scenario = await _scenarioService.GetAsync(scenarioId);
+            if (scenario == null)
+                return NotFound(new { error = $"Scenario {scenarioId} not found" });
+
+            var (isValid, issues) = await _scenarioService.ValidateTrainingPrerequisitesAsync(scenarioId);
+            return Ok(new
             {
-                return RequestValidationResult.Fail("Training workflow file is empty.");
-            }
+                isValid,
+                issues
+            });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error reading training workflow file for scenario {ScenarioId}", scenarioId);
-            return RequestValidationResult.Fail("Error reading training workflow file.");
+            _logger.LogError(ex, "Error validating training prerequisites for scenario {ScenarioId}", scenarioId);
+            return StatusCode(500, new { error = "Error validating training prerequisites" });
         }
+    }
 
-        return RequestValidationResult.Success();
+    [HttpGet("{scenarioId}/status")]
+    public async Task<IActionResult> GetScenarioStatus(string scenarioId)
+    {
+        try
+        {
+            var status = await _scenarioService.GetScenarioStatusAsync(scenarioId);
+            if (status == null)
+                return NotFound(new { error = $"Scenario {scenarioId} not found" });
+
+            return Ok(status);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving status for scenario {ScenarioId}", scenarioId);
+            return StatusCode(500, new { error = "Error retrieving scenario status" });
+        }
     }
 }

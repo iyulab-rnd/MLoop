@@ -1,7 +1,9 @@
 ﻿using YamlDotNet.Core;
+using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.Serialization.NodeDeserializers;
+using YamlDotNet.Serialization.ObjectFactories;
 
 namespace MLoop;
 
@@ -12,15 +14,24 @@ public static class YamlHelper
 
     static YamlHelper()
     {
-        DefaultDeserializer = new DeserializerBuilder()
+        DefaultDeserializer = CreateDeserializerBuilder().Build();
+        DefaultSerializer = CreateSerializerBuilder().Build();
+    }
+
+    public static DeserializerBuilder CreateDeserializerBuilder()
+    {
+        return new DeserializerBuilder()
             .WithNamingConvention(CamelCaseNamingConvention.Instance)
             .WithNodeDeserializer(inner => new ValidatingNodeDeserializer(inner),
                 s => s.InsteadOf<ObjectNodeDeserializer>())
-            .Build();
+            .IgnoreUnmatchedProperties();
+    }
 
-        DefaultSerializer = new SerializerBuilder()
+    public static SerializerBuilder CreateSerializerBuilder()
+    {
+        return new SerializerBuilder()
             .WithNamingConvention(CamelCaseNamingConvention.Instance)
-            .Build();
+            .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull);
     }
 
     public static T? Deserialize<T>(string yaml)
@@ -67,7 +78,6 @@ public class ValidatingNodeDeserializer : INodeDeserializer
     {
         if (_nodeDeserializer.Deserialize(parser, expectedType, nestedObjectDeserializer, out value, rootDeserializer))
         {
-            // Dictionary<string, object> 변환이 필요한 경우
             if (expectedType == typeof(Dictionary<string, object>) ||
                 expectedType == typeof(IDictionary<string, object>))
             {
@@ -77,7 +87,6 @@ public class ValidatingNodeDeserializer : INodeDeserializer
                 }
                 else if (value is Dictionary<string, object> strDict)
                 {
-                    // 이미 string key를 가진 dictionary인 경우 값만 재귀적으로 변환
                     value = ConvertDictionaryValues(strDict);
                 }
             }

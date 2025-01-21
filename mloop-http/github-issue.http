@@ -1,150 +1,47 @@
 @host = https://localhost:7102
-# @host = https://mloop.iyulab.com
+@scenarioId = 8893c126e2ac48ecae633557d7d64f6d
 
-@scenarioId = a637326e171b49c3bf41aba743873eec
-@jobId = 8cb84a1ef39244a8a50809803c61e24a
-@modelId = m20241226070234
-@predictionId = 9c05e582b8de45b8b7da3ac859d6b7b5
-
-# < D:\data\MLoop\files\GitHubIssueClassification\issues_train.tsv
-
-### 시나리오 조회
-GET {{host}}/api/scenarios
-
-#### Response: HTTP/1.1 200 OK
-# content-type: application/json; charset=utf-8
-
-# [
-#   {
-#     "scenarioId": "262c66c3f8064b938ba4d6b253a5ab46",
-#     "name": "GitHub Issue Classification",
-#     "tags": [
-#       "github",
-#       "issues",
-#       "area"
-#     ],
-#     "mlType": "classification",
-#     "createdAt": "2024-12-22T13:16:07.5067223Z"
-#   }
-# ]
-
-###  시나리오 조회 (Name)
-GET {{host}}/api/scenarios?$filter=contains(name,'GitHub') and mlType eq 'classification'
-
-### 시나리오 조회 (ML Type)
-GET {{host}}/api/scenarios?$filter=mlType eq 'classification'
-
-### 시나리오 조회 (최신순)
-GET {{host}}/api/scenarios?$orderby=createdAt desc
-
-### 시나리오 조회 (Tags)
-GET {{host}}/api/scenarios?$filter=tags/any(t: t eq 'github')
-
-### Create a new scenario
+### 1. 시나리오 생성
 POST {{host}}/api/scenarios
 Content-Type: application/json
 
 {
     "name": "GitHub Issue Classification",
     "mlType": "classification",
-    "tags": ["github", "issues", "area"]
+    "tags": ["github", "issue", "classification"]
 }
 
-#### Response: HTTP/1.1 201 Created
-# content-type: application/json; charset=utf-8
-
-# {
-#   "scenarioId": "82faaea9a84847bf9622edceb542ce66",
-#   "name": "GitHub Issue Classification",
-#   "tags": [
-#     "github",
-#     "issues",
-#     "area"
-#   ],
-#   "mlType": "classification",
-#   "createdAt": "2024-12-22T17:45:18.0155984Z"
-# }
-
-### 데이터 조회
-GET {{host}}/api/scenarios/{{scenarioId}}/data
-
-#### Response: HTTP/1.1 200 OK
-# content-type: application/json; charset=utf-8
-
-# [
-#   {
-#     "name": "issues_test.tsv",
-#     "path": "issues_test.tsv",
-#     "size": 4497246,
-#     "lastModified": "2024-12-22T16:54:44.5133821Z"
-#   },
-#   {
-#     "name": "issues_train.tsv",
-#     "path": "issues_train.tsv",
-#     "size": 15391154,
-#     "lastModified": "2024-12-22T16:54:37.0949749Z"
-#   }
-# ]
-
-### Upload training data
+### 2. 훈련 데이터 업로드 
 POST {{host}}/api/scenarios/{{scenarioId}}/data
-Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
 
-------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="file"; filename="issues_train.tsv"
+------WebKitFormBoundary
+Content-Disposition: form-data; name="files"; filename="issues_train.tsv"
 Content-Type: text/tab-separated-values
 
-< D:\data\MLoop\files\GitHubIssueClassification\issues_train.tsv
-------WebKitFormBoundary7MA4YWxkTrZu0gW--
+< ..\files\GitHubIssueClassification\issues_train.tsv
+------WebKitFormBoundary--
 
-#### Response: HTTP/1.1 200 OK
-# content-type: application/json; charset=utf-8
-
-# {
-#   "fileName": "issues_train.tsv",
-#   "size": 15391154,
-#   "path": "issues_train.tsv"
-# }
-
-### Upload test data
+### 3. 테스트 데이터 업로드
 POST {{host}}/api/scenarios/{{scenarioId}}/data
-Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
 
-------WebKitFormBoundary7MA4YWxkTrZu0gW
+------WebKitFormBoundary
 Content-Disposition: form-data; name="files"; filename="issues_test.tsv"
 Content-Type: text/tab-separated-values
 
-< D:\data\MLoop\files\GitHubIssueClassification\issues_test.tsv
-------WebKitFormBoundary7MA4YWxkTrZu0gW--
+< ..\files\GitHubIssueClassification\issues_test.tsv
+------WebKitFormBoundary--
 
-#### Response: HTTP/1.1 200 OK
-# content-type: application/json; charset=utf-8
+### 4. 데이터 파일 목록 확인
+GET {{host}}/api/scenarios/{{scenarioId}}/data
 
-# [
-#   {
-#     "fileName": "issues_test.tsv",
-#     "size": 4497246,
-#     "path": "issues_test.tsv"
-#   }
-# ]
-
-### Delete data
-DELETE {{host}}/api/scenarios/{{scenarioId}}/data/issues_test.tsv
-
-#### Response: HTTP/1.1 200 OK
-# content-type: application/json; charset=utf-8
-
-# {
-#   "message": "File deleted successfully"
-# }
-
-### GET train workflow
-GET {{host}}/api/scenarios/{{scenarioId}}/workflows/train
-
-### Update train workflow
-POST {{host}}/api/scenarios/{{scenarioId}}/workflows/train
+### 5. 기본 학습 워크플로우 업데이트
+PUT {{host}}/api/scenarios/{{scenarioId}}/workflows/default_train
 Content-Type: text/yaml
 
+name: default_train
+type: Train
 steps:
   - name: classify_issues
     type: mlnet-train
@@ -160,339 +57,32 @@ steps:
         has-header: true
         allow-quote: true
         train-time: 600
-        ignore-cols: ID
-
-#### Response: HTTP/1.1 200 OK
-# content-type: application/json; charset=utf-8
-
-# {
-#   "message": "Train workflow updated successfully"
-# }
+        ignore-cols: ID 
         
-### Start training
+### 워크플로우 가져오기
+GET {{host}}/api/scenarios/{{scenarioId}}/workflows/default_train
+
+### 6. 워크플로우 목록 확인
+GET {{host}}/api/scenarios/{{scenarioId}}/workflows
+
+### 7. 모델 학습 시작
 POST {{host}}/api/scenarios/{{scenarioId}}/train
 
-#### Response: HTTP/1.1 200 OK
-# content-type: application/json; charset=utf-8
+### 8. 학습 작업 상태 확인 (jobId는 이전 응답에서 받은 것으로 교체)
+GET {{host}}/api/scenarios/{{scenarioId}}/jobs/{jobId}
 
-# {
-#   "jobId": "8cb84a1ef39244a8a50809803c61e24a",
-#   "status": "Waiting"
-# }
-
-### GET Jobs
-GET {{host}}/api/scenarios/{{scenarioId}}/jobs
-
-#### Response: HTTP/1.1 200 OK
-# content-type: application/json; charset=utf-8
-
-# [
-#   {
-#     "jobId": "8cb84a1ef39244a8a50809803c61e24a",
-#     "scenarioId": "262c66c3f8064b938ba4d6b253a5ab46",
-#     "status": "Running",
-#     "workerId": "worker_1",
-#     "createdAt": "2024-12-22T17:48:57.1670213Z",
-#     "startedAt": "2024-12-22T17:48:59.9749147Z",
-#     "jobType": "Train",
-#     "statusHistory": [
-#       {
-#         "status": "Running",
-#         "timestamp": "2024-12-22T17:48:59.9749161Z",
-#         "workerId": "worker_1",
-#         "message": "Job started"
-#       }
-#     ],
-#     "failureType": "None",
-#     "modelId": "m20241222174859"
-#   }
-# ]
-
-### GET Job
-GET {{host}}/api/scenarios/{{scenarioId}}/jobs/{{jobId}}
-
-#### Response: HTTP/1.1 200 OK
-# content-type: application/json; charset=utf-8
-
-# {
-#   "jobId": "8cb84a1ef39244a8a50809803c61e24a",
-#   "scenarioId": "262c66c3f8064b938ba4d6b253a5ab46",
-#   "status": "Running",
-#   "workerId": "worker_1",
-#   "createdAt": "2024-12-22T17:48:57.1670213Z",
-#   "startedAt": "2024-12-22T17:48:59.9749147Z",
-#   "jobType": "Train",
-#   "statusHistory": [
-#     {
-#       "status": "Running",
-#       "timestamp": "2024-12-22T17:48:59.9749161Z",
-#       "workerId": "worker_1",
-#       "message": "Job started"
-#     }
-#   ],
-#   "failureType": "None",
-#   "modelId": "m20241222174859"
-# }
-
-### Cancel Job
-POST {{host}}/api/scenarios/{{scenarioId}}/jobs/{{jobId}}/cancel
-
-### GET Job Logs
-GET {{host}}/api/scenarios/{{scenarioId}}/jobs/{{jobId}}/logs
-
-#### Response: HTTP/1.1 200 OK
-# content-type: text/plain; charset=utf-8
-
-# [2024-12-22 17:49:00.033 UTC] Job started by worker worker_1
-# Machine: mloop-worker--nqmz739-b56757487-q2bcs
-# Process ID: 1
-# Job Type: Train
-
-# ....
-
-### GET Models
+### 9. 학습된 모델 목록 확인
 GET {{host}}/api/scenarios/{{scenarioId}}/models
 
-#### Response: HTTP/1.1 200 OK
-# content-type: application/json; charset=utf-8
-
-# [
-#   {
-#     "modelId": "m20241222171046",
-#     "mlType": "classification",
-#     "command": "classification",
-#     "arguments": {
-#       "dataset": "/var/data/mloop/scenarios/262c66c3f8064b938ba4d6b253a5ab46/data/issues_train.tsv",
-#       "validation-dataset": "/var/data/mloop/scenarios/262c66c3f8064b938ba4d6b253a5ab46/data/issues_test.tsv",
-#       "label-col": "Area",
-#       "has-header": "true",
-#       "allow-quote": "true",
-#       "train-time": "600",
-#       "ignore-cols": "ID",
-#       "cross-validation": null,
-#       "name": "Model",
-#       "verbosity": "diag",
-#       "log-file-path": "train.log",
-#       "cache": "Auto",
-#       "read-multi-lines": true
-#     },
-#     "metrics": {
-#       "ModelsExplored": 3,
-#       "TotalRuntime": 400.14300000000003,
-#       "Rank1_Score": 0.6047929274272204,
-#       "Rank1_Runtime": 134.214,
-#       "Rank1_Trainer_Id": 0,
-#       "BestScore": 0.6047929274272204,
-#       "BestRuntime": 134.214,
-#       "BestTrainer_Id": 0,
-#       "Rank2_Score": 0.045454545454545456,
-#       "Rank2_Runtime": 254.098,
-#       "Rank2_Trainer_Id": 0,
-#       "Rank3_Score": 0.045454545454545456,
-#       "Rank3_Runtime": 11.831,
-#       "Rank3_Trainer_Id": 0,
-#       "ConfiguredTrainingTime": 600
-#     },
-#     "createdAt": "2024-12-22T17:20:54.8611752Z"
-#   }
-# ]
-
-
-### GET Model
-GET {{host}}/api/scenarios/{{scenarioId}}/models/{{modelId}}
-
-#### Response: HTTP/1.1 200 OK
-# content-type: application/json; charset=utf-8
-
-# {
-#   "modelId": "m20241222171046",
-#   "mlType": "classification",
-#   "command": "classification",
-#   "arguments": {
-#     ...
-#   },
-#   "metrics": {
-#     ...
-#   },
-#   "createdAt": "2024-12-22T17:20:54.8611752Z"
-# }
-
-### GET Model Train Logs (train.log)
-GET {{host}}/api/scenarios/{{scenarioId}}/models/{{modelId}}/logs/train
-
-#### Response: HTTP/1.1 200 OK
-# content-type: text/plain; charset=utf-8
-
-# 2024-12-22 17:10:47.5050 INFO Start Training (Microsoft.ML.CLI.Runners.AutoMLRunner+<ExecuteAsync>d__8.MoveNext)
-# 2024-12-22 17:10:47.7564 INFO start multiclass classification (Microsoft.ML.CLI.Utilities.PBarConsolePrinter.Print)
-# 2024-12-22 17:10:47.7789 INFO Evaluate Metric: MacroAccuracy (Microsoft.ML.CLI.Utilities.PBarConsolePrinter.Print)
-# ...
-
-### GET Model Metrics (metrics.json)
-GET {{host}}/api/scenarios/{{scenarioId}}/models/{{modelId}}/metrics
-
-#### Response: HTTP/1.1 200 OK
-# content-type: application/json; charset=utf-8
-
-# {
-#   "ModelsExplored": 3,
-#   "TotalRuntime": 400.14300000000003,
-#   "Rank1_Score": 0.6047929274272204,
-#   "Rank1_Runtime": 134.214,
-#   "Rank1_Trainer_Id": 0,
-#   "BestScore": 0.6047929274272204,
-#   "BestRuntime": 134.214,
-#   "BestTrainer_Id": 0,
-#   "Rank2_Score": 0.045454545454545456,
-#   "Rank2_Runtime": 254.098,
-#   "Rank2_Trainer_Id": 0,
-#   "Rank3_Score": 0.045454545454545456,
-#   "Rank3_Runtime": 11.831,
-#   "Rank3_Trainer_Id": 0,
-#   "ConfiguredTrainingTime": 600
-# }
-
-### GET Best Model
-GET {{host}}/api/scenarios/{{scenarioId}}/models/best-model
-
-#### Response: HTTP/1.1 200 OK
-# content-type: application/json; charset=utf-8
-
-# {
-#   "modelId": "m20241222171046",
-#   "mlType": "classification",
-#   "command": "classification",
-#   "arguments": {
-#     ...
-#   },
-#   "metrics": {
-#     ...
-#   },
-#   "createdAt": "2024-12-22T17:20:54.8611752Z"
-# }
-
-### POST Cleanup Jobs - 완료된 작업을 모두 제거 (.json, .log, _result.json)
-POST {{host}}/api/scenarios/{{scenarioId}}/jobs/cleanup
-
-#### Response: HTTP/1.1 200 OK
-# content-type: application/json; charset=utf-8
-
-# {
-#   "message": "Completed jobs cleaned up successfully",
-#   "cleanedCount": 3
-# }
-
-### POST Cleanup Models - Best Model 이 아닌 모델을 모두 제거
-POST {{host}}/api/scenarios/{{scenarioId}}/models/cleanup
-
-#### Response: HTTP/1.1 200 OK
-# content-type: application/json; charset=utf-8
-
-# {
-#   "message": "Non-best models cleaned up successfully"
-# }
-
-### POST Cleanup Predictions - 완료된 예측을 모두 제거
-POST {{host}}/api/scenarios/{{scenarioId}}/predictions/cleanup
-
-#### Response: HTTP/1.1 200 OK
-# content-type: application/json; charset=utf-8
-
-# {
-#   "message": "Completed predictions cleaned up successfully",
-#   "cleanedCount": 0
-# }
-
-### POST Predict - Best Model 에 의한 예측 실행
+### 10. 예측 테스트
 POST {{host}}/api/scenarios/{{scenarioId}}/predict
 Content-Type: text/tab-separated-values
 
-Title	Description
-Python Programming	How to Handle Large JSON Files Efficiently in Python?	I'm working on a Python project to process large JSON files (several GB). Loading the entire file into memory with json.load() causes crashes. I need an efficient way to extract specific keys and values without loading the full file. How can I handle large JSON files line by line or in chunks?
+Title
+Update documentation for new API endpoints
+Fix memory leak in background worker
+Add support for dark mode in UI
+Improve error handling in authentication module
 
-#### Response
-# {
-#     "predictionId": "<predictionId>"
-# }
-
-### GET Prediction Result (result.csv)
-GET {{host}}/api/scenarios/{{scenarioId}}/predictions/{{predictionId}}
-
-#### 200: OK - 예측 실행중...
-# HTTP/1.1 200 OK
-# Content-Type: application/json; charset=utf-8
-
-# {
-#   "status": "processing",
-#   "jobStatus": "Waiting",
-#   "message": "Processing prediction...",
-#   "modelId": "m20241220071928"
-# }
-
-#### 200: OK - 예측 완료
-# HTTP/1.1 200 OK
-# Content-Type: text/csv
-# Content-Disposition: attachment; filename=result_37e30742fae749ca8031caa31cc1916c.csv; filename*=UTF-8''result_37e30742fae749ca8031caa31cc1916c.csv
-
-# Top1,Top1Score,Top2,Top2Score,Top3,Top3Score
-# area-System.IO,0.471420,area-System.Net,0.092583,area-Infrastructure,0.088676
-
-### GET Predictions
-GET {{host}}/api/scenarios/{{scenarioId}}/predictions
-
-#### Response: HTTP/1.1 200 OK
-# Content-Type: application/json; charset=utf-8
-
-# [
-#   {
-#     "predictionId": "05d8abac3b88457fbc6d9e6a0a68c2c8",
-#     "modelId": "m20241224053629",
-#     "status": "Waiting",
-#     "createdAt": "2024-12-26T00:44:20.7295003Z",
-#     "hasResult": false,
-#     "inputFile": "input.tsv"
-#   },
-#   {
-#     "predictionId": "05d8abac3b88457fbc6d9e6a0a68c2c8",
-#     "modelId": "m20241224053629",
-#     "status": "Completed",
-#     "createdAt": "2024-12-26T00:44:20.7295003Z",
-#     "completedAt": "2024-12-26T00:46:08.2557483Z",
-#     "hasResult": true,
-#     "inputFile": "input.tsv"
-#   }
-# ]
-
-### GET Default Predict File
-GET {{host}}/api/scenarios/{{scenarioId}}/predictions/{{predictionId}}/files/result.csv
-
-
-#### Response: HTTP/1.1 200 OK
-# Content-Type: text/csv
-
-# Top1,Top1Score,Top2,Top2Score,Top3,Top3Score
-# area-System.IO,0.471420,area-System.Net,0.092583,area-Infrastructure,0.088676
-
-### GET Prediction Folder Files
-GET {{host}}/api/scenarios/{{scenarioId}}/predictions/{{predictionId}}/files
-
-#### Response: HTTP/1.1 200 OK
-# Content-Type: application/json; charset=utf-8
-
-# [
-#   {
-#     "name": "input.tsv",
-#     "path": "input.tsv",
-#     "size": 391,
-#     "lastModified": "2024-12-26T00:44:20.7263708Z"
-#   },
-#   {
-#     "name": "result.csv",
-#     "path": "result.csv",
-#     "size": 125,
-#     "lastModified": "2024-12-26T00:46:08.2052972Z"
-#   }
-# ]
-
-### Download File
-GET {{host}}/api/scenarios/{{scenarioId}}/predictions/{{predictionId}}/files/<filePath>
+### 11. 예측 결과 확인 (predictionId는 이전 응답에서 받은 것으로 교체)
+GET {{host}}/api/scenarios/{{scenarioId}}/predictions/{predictionId}

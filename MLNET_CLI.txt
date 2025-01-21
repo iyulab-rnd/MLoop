@@ -17,8 +17,6 @@ Commands:
   forecasting           Train a custom ML.NET model for time series forecasting.
   object-detection      Train local object detection model.
 
-  classification, regression, recommendation, image-classification, text-classification, forecasting, object-detection
-
 >mlnet classification -h
 Option '--dataset' is required.
 Option '--label-col' is required.

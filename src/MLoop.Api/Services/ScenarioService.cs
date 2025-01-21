@@ -1,6 +1,7 @@
-﻿using MLoop.Api.Models;
-using MLoop.Models;
+﻿using MLoop.Api.Models.Scenarios;
 using MLoop.Models.Jobs;
+using MLoop.Models.Workflows;
+using MLoop.Models;
 using MLoop.Services;
 using MLoop.Storages;
 
@@ -9,157 +10,142 @@ namespace MLoop.Api.Services;
 public class ScenarioService
 {
     private readonly ScenarioManager _scenarioManager;
+    private readonly ScenarioHandler _scenarioHandler;
     private readonly JobService _jobService;
+    private readonly WorkflowService _workflowService;
     private readonly IFileStorage _storage;
     private readonly ILogger<ScenarioService> _logger;
 
     public ScenarioService(
         ScenarioManager scenarioManager,
+        ScenarioHandler scenarioHandler,
         JobService jobService,
+        WorkflowService workflowService,
         IFileStorage storage,
         ILogger<ScenarioService> logger)
     {
         _scenarioManager = scenarioManager;
+        _scenarioHandler = scenarioHandler;
         _jobService = jobService;
+        _workflowService = workflowService;
         _storage = storage;
         _logger = logger;
     }
 
-    public async Task<ScenarioMetadata> CreateScenarioAsync(CreateScenarioRequest request)
+    public Task<(bool isValid, List<string> issues)> ValidateTrainingPrerequisitesAsync(string scenarioId)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
-            throw new ArgumentException("Scenario name cannot be empty", nameof(request));
+        var issues = new List<string>();
+        var dataDir = _storage.GetScenarioDataDir(scenarioId);
 
-        if (!IsValidMLType(request.MLType))
-            throw new ArgumentException("Invalid ML Type", nameof(request));
-
-        var scenarioId = Guid.NewGuid().ToString("N");
-        _logger.LogInformation("Creating new scenario with ID: {ScenarioId}", scenarioId);
-
-        var scenario = new ScenarioMetadata
+        if (!Directory.Exists(dataDir))
         {
-            ScenarioId = scenarioId,
-            Name = request.Name.Trim(),
-            MLType = request.MLType.Trim().ToLower(),
-            Tags = request.Tags?.Select(t => t.Trim().ToLower()).ToList() ?? [],
-            CreatedAt = DateTime.UtcNow
-        };
+            issues.Add("Training data directory not found");
+            return Task.FromResult<(bool isValid, List<string> issues)>((false, issues));
+        }
 
-        await _scenarioManager.SaveScenarioAsync(scenarioId, scenario);
-        _logger.LogInformation("Successfully created scenario: {ScenarioId}", scenarioId);
+        if (!Directory.EnumerateFiles(dataDir, "*.*", SearchOption.AllDirectories).Any())
+        {
+            issues.Add("No training data files found");
+            return Task.FromResult<(bool isValid, List<string> issues)>((false, issues));
+        }
+
+        return Task.FromResult<(bool isValid, List<string> issues)>((true, issues));
+    }
+
+    public async Task<object?> GetScenarioStatusAsync(string scenarioId)
+    {
+        var scenario = await GetAsync(scenarioId);
+        if (scenario == null)
+            return null;
+
+        var jobs = await _jobService.GetScenarioJobsAsync(scenarioId);
+        var latestJob = jobs.OrderByDescending(j => j.CreatedAt).FirstOrDefault();
+
+        return new
+        {
+            scenario.ScenarioId,
+            scenario.Name,
+            scenario.MLType,
+            HasTrainingData = Directory.Exists(_storage.GetScenarioDataDir(scenarioId)),
+            LatestJobStatus = latestJob?.Status.ToString(),
+            LatestJobType = latestJob?.JobType.ToString(),
+            LastUpdated = latestJob?.CompletedAt ?? scenario.CreatedAt
+        };
+    }
+
+    public async Task<MLScenario> CreateAsync(CreateScenarioRequest request)
+    {
+        var scenario = await _scenarioHandler.InitializeScenarioAsync(request);
+        _logger.LogInformation("Created new scenario with ID: {ScenarioId}", scenario.ScenarioId);
         return scenario;
     }
 
-    public async Task<IQueryable<ScenarioMetadata>> GetScenariosAsync()
+    public async Task<MLScenario?> GetAsync(string scenarioId)
     {
-        _logger.LogInformation("Getting all scenarios");
-        var scenarios = await _scenarioManager.GetAllScenariosAsync();
-        _logger.LogInformation("Found {Count} scenarios", scenarios.Count);
-        return scenarios.AsQueryable();
+        return await _scenarioManager.LoadAsync(scenarioId);
     }
 
-    public async Task<ScenarioMetadata?> GetScenarioAsync(string scenarioId)
+    public async Task<IEnumerable<MLScenario>> GetAllScenariosAsync()
     {
-        return await _scenarioManager.LoadScenarioAsync(scenarioId);
+        return await _scenarioManager.GetAllScenariosAsync();
     }
 
-    public async Task UpdateScenarioAsync(string scenarioId, CreateScenarioRequest request)
+    public async Task<MLScenario> UpdateAsync(string scenarioId, UpdateScenarioRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
-            throw new ArgumentException("Scenario name cannot be empty", nameof(request));
+        var scenario = await _scenarioHandler.UpdateScenarioAsync(scenarioId, request);
+        _logger.LogInformation("Updated scenario {ScenarioId}", scenarioId);
+        return scenario;
+    }
 
-        if (!IsValidMLType(request.MLType))
-            throw new ArgumentException("Invalid ML Type", nameof(request));
+    public async Task DeleteAsync(string scenarioId)
+    {
+        await _scenarioManager.DeleteAsync(scenarioId);
+        _logger.LogInformation("Deleted scenario {ScenarioId}", scenarioId);
+    }
 
-        var scenario = await _scenarioManager.LoadScenarioAsync(scenarioId)
+    public async Task<(string jobId, MLJobStatus status)> CreateTrainJobAsync(
+        string scenarioId,
+        string workflowName = "default_train")
+    {
+        var scenario = await GetAsync(scenarioId)
             ?? throw new KeyNotFoundException($"Scenario {scenarioId} not found");
 
-        scenario.Name = request.Name.Trim();
-        scenario.MLType = request.MLType.Trim().ToLower();
-        scenario.Tags = request.Tags?.Select(t => t.Trim().ToLower()).ToList() ?? [];
-
-        await _scenarioManager.SaveScenarioAsync(scenarioId, scenario);
-    }
-
-    public async Task DeleteScenarioAsync(string scenarioId)
-    {
-        try
+        var workflow = await _workflowService.GetAsync(scenarioId, workflowName);
+        if (workflow == null || workflow.Type != WorkflowType.Train)
         {
-            // 1. 시나리오 메타데이터 확인
-            var scenario = await _scenarioManager.LoadScenarioAsync(scenarioId);
-            if (scenario == null)
-            {
-                _logger.LogWarning("Attempting to delete non-existent scenario {ScenarioId}", scenarioId);
-                throw new KeyNotFoundException($"Scenario {scenarioId} not found");
-            }
-
-            // 2. 시나리오 기본 디렉토리 경로 가져오기
-            var scenarioBaseDir = _storage.GetScenarioBaseDir(scenarioId);
-
-            // 3. 시나리오 메타데이터 삭제
-            await _scenarioManager.DeleteScenarioAsync(scenarioId);
-
-            // 4. 시나리오 디렉토리가 존재하면 삭제
-            if (Directory.Exists(scenarioBaseDir))
-            {
-                // 읽기 전용 파일 속성 제거를 위한 재귀적 처리
-                foreach (var file in Directory.GetFiles(scenarioBaseDir, "*", SearchOption.AllDirectories))
-                {
-                    File.SetAttributes(file, FileAttributes.Normal);
-                }
-
-                Directory.Delete(scenarioBaseDir, recursive: true);
-                _logger.LogInformation("Deleted scenario directory for {ScenarioId}", scenarioId);
-            }
+            throw new WorkflowNotFoundException(workflowName, scenarioId);
         }
-        catch (Exception ex) when (ex is not KeyNotFoundException)
-        {
-            _logger.LogError(ex, "Error deleting scenario {ScenarioId}", scenarioId);
-            throw new ApiException($"Failed to delete scenario: {ex.Message}", 500);
-        }
-    }
 
-    public async Task<(string jobId, MLJobStatus status)> CreateTrainJobAsync(string scenarioId)
-    {
-        var scenario = await _scenarioManager.LoadScenarioAsync(scenarioId)
-            ?? throw new KeyNotFoundException($"Scenario {scenarioId} not found");
+        await ValidateTrainingPrerequisites(scenarioId);
 
-        // 완료되지 않은 Train 작업이 있는지 확인
-        var jobs = await _jobService.GetScenarioJobsAsync(scenarioId);
-        var existingTrainJob = jobs.FirstOrDefault(j =>
-            j.JobType == MLJobType.Train &&
+        // 이미 실행 중인 training job이 있는지 확인
+        var existingJobs = await _jobService.GetScenarioJobsAsync(scenarioId);
+        var runningJob = existingJobs.FirstOrDefault(j =>
+            j.WorkflowName == workflowName &&
             (j.Status == MLJobStatus.Waiting || j.Status == MLJobStatus.Running));
 
-        if (existingTrainJob != null)
+        if (runningJob != null)
         {
-            _logger.LogInformation(
-                "Found existing train job {JobId} in progress for scenario {ScenarioId}",
-                existingTrainJob.JobId, scenarioId);
-            return (existingTrainJob.JobId, existingTrainJob.Status);
+            return (runningJob.JobId, runningJob.Status);
         }
 
-        // 새 작업 생성
-        var jobId = await _jobService.CreateJobAsync(scenarioId, MLJobType.Train);
-        _logger.LogInformation(
-            "Created new train job {JobId} for scenario {ScenarioId}",
-            jobId, scenarioId);
+        // 새 training job 생성
+        var jobId = await _jobService.CreateJobAsync(
+            scenarioId,
+            workflowName,
+            workflow.Environment);
 
         return (jobId, MLJobStatus.Waiting);
     }
 
-    private static bool IsValidMLType(string mlType)
+    private Task ValidateTrainingPrerequisites(string scenarioId)
     {
-        var validTypes = new[]
+        var dataDir = _storage.GetScenarioDataDir(scenarioId);
+        if (!Directory.Exists(dataDir) || !Directory.EnumerateFiles(dataDir, "*.*", SearchOption.AllDirectories).Any())
         {
-            "classification",
-            "regression",
-            "recommendation",
-            "image-classification",
-            "text-classification",
-            "forecasting",
-            "object-detection"
-        };
+            throw new ValidationException("No training data found. Please upload data files first.");
+        }
 
-        return validTypes.Contains(mlType.Trim().ToLower());
+        return Task.CompletedTask;
     }
 }

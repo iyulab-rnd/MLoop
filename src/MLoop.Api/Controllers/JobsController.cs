@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MLoop.Api.Services;
 using MLoop.Models.Jobs;
-using MLoop.Storages;
+using MLoop.Api.Models.Jobs;
 
 namespace MLoop.Api.Controllers;
 
@@ -10,16 +10,13 @@ namespace MLoop.Api.Controllers;
 public class JobsController : ControllerBase
 {
     private readonly JobService _jobService;
-    private readonly IFileStorage _storage;
     private readonly ILogger<JobsController> _logger;
 
     public JobsController(
         JobService jobService,
-        IFileStorage storage,
         ILogger<JobsController> logger)
     {
         _jobService = jobService;
-        _storage = storage;
         _logger = logger;
     }
 
@@ -43,14 +40,52 @@ public class JobsController : ControllerBase
     {
         try
         {
-            var status = await _jobService.GetJobStatusAsync(scenarioId, jobId);
-            if (status == null)
+            var job = await _jobService.GetAsync(scenarioId, jobId);
+            if (job == null)
                 return NotFound();
-            return Ok(status);
+            return Ok(job);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving job status");
+            _logger.LogError(ex, "Error retrieving job status for job {JobId} in scenario {ScenarioId}", jobId, scenarioId);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateJob(string scenarioId, [FromBody] CreateJobRequest request)
+    {
+        try
+        {
+            var job = await _jobService.CreateAsync(scenarioId, request);
+            return CreatedAtAction(nameof(GetJobStatus), new { scenarioId, jobId = job.JobId }, job);
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating job in scenario {ScenarioId}", scenarioId);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    [HttpPut("{jobId}")]
+    public async Task<IActionResult> UpdateJob(string scenarioId, string jobId, [FromBody] UpdateJobRequest request)
+    {
+        try
+        {
+            var job = await _jobService.UpdateAsync(scenarioId, jobId, request);
+            return Ok(job);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating job {JobId} in scenario {ScenarioId}", jobId, scenarioId);
             return StatusCode(500, "Internal server error");
         }
     }
@@ -91,6 +126,23 @@ public class JobsController : ControllerBase
         }
     }
 
+    [HttpGet("{jobId}/result")]
+    public async Task<IActionResult> GetJobResult(string scenarioId, string jobId)
+    {
+        try
+        {
+            var result = await _jobService.GetJobResultAsync(scenarioId, jobId);
+            if (result == null)
+                return NotFound();
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving result for job {JobId} in scenario {ScenarioId}", jobId, scenarioId);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
     [HttpPost("cleanup")]
     public async Task<IActionResult> CleanupJobs(string scenarioId)
     {
@@ -102,20 +154,9 @@ public class JobsController : ControllerBase
 
             foreach (var job in completedJobs)
             {
-                // 작업 파일 삭제
-                var jobPath = _storage.GetJobPath(scenarioId, job.JobId);
-                var resultPath = _storage.GetJobResultPath(scenarioId, job.JobId);
-                var logsPath = _storage.GetJobLogsPath(scenarioId, job.JobId);
-
-                if (System.IO.File.Exists(jobPath))
-                    System.IO.File.Delete(jobPath);
-                if (System.IO.File.Exists(resultPath))
-                    System.IO.File.Delete(resultPath);
-                if (System.IO.File.Exists(logsPath))
-                    System.IO.File.Delete(logsPath);
-
+                await _jobService.DeleteAsync(scenarioId, job.JobId);
                 _logger.LogInformation(
-                    "Cleaned up job {JobId} files for scenario {ScenarioId}",
+                    "Cleaned up job {JobId} for scenario {ScenarioId}",
                     job.JobId, scenarioId);
             }
 

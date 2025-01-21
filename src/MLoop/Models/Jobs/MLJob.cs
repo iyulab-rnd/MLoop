@@ -14,7 +14,7 @@ public enum MLJobType
     Predict
 }
 
-public class MLJob
+public class MLJob : IScenarioEntity
 {
     public string JobId { get; set; } = string.Empty;
     public string ScenarioId { get; set; } = string.Empty;
@@ -25,10 +25,11 @@ public class MLJob
     public DateTime? CompletedAt { get; set; }
     public DateTime? FailedAt { get; set; }
     public string? ErrorMessage { get; set; }
-    public MLJobType JobType { get; set; }
+    public string WorkflowName { get; set; } = string.Empty;
     public List<MLJobStatusHistory> StatusHistory { get; set; } = [];
     public JobFailureType FailureType { get; set; }
     public string? ModelId { get; set; }
+    public MLJobType JobType { get; set; } = MLJobType.Train;
     public Dictionary<string, object> Variables { get; set; } = [];
 
     public void AddStatusHistory(MLJobStatus status, string? workerId = null, string? message = null)

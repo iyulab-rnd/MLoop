@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MLoop.Api.Services;
 using MLoop.Models.Jobs;
-using MLoop.Services;
+using MLoop.Models.Workflows;
 using MLoop.Storages;
 
 namespace MLoop.Api.Controllers;
@@ -13,17 +13,20 @@ public class PredictionsController : ControllerBase
     private readonly IFileStorage _storage;
     private readonly JobService _jobService;
     private readonly ModelService _modelService;
+    private readonly WorkflowService _workflowService;
     private readonly ILogger<PredictionsController> _logger;
 
     public PredictionsController(
         IFileStorage storage,
         JobService jobService,
         ModelService modelService,
+        WorkflowService workflowService,
         ILogger<PredictionsController> logger)
     {
         _storage = storage;
         _jobService = jobService;
         _modelService = modelService;
+        _workflowService = workflowService;
         _logger = logger;
     }
 
@@ -32,15 +35,23 @@ public class PredictionsController : ControllerBase
     [Route("/api/scenarios/{scenarioId}/predictions")]
     [Route("/api/scenarios/{scenarioId}/models/{modelId}/predict")]
     public async Task<IActionResult> Predict(
-        string scenarioId,
-        [FromBody] string content,
-        [FromQuery] string? modelId = null)
+    string scenarioId,
+    [FromBody] string content,
+    [FromQuery] string? modelId = null,
+    [FromQuery] string workflowName = "default_predict")
     {
         try
         {
-            // 모델 선택: modelId가 제공된 경우 해당 모델 사용, 아니면 Best Model 사용
+            // 워크플로우 검증
+            var workflow = await _workflowService.GetAsync(scenarioId, workflowName);
+            if (workflow == null || workflow.Type != WorkflowType.Predict)
+            {
+                return BadRequest(new { message = $"Invalid prediction workflow '{workflowName}'" });
+            }
+
+            // 모델 선택
             var selectedModel = modelId != null
-                ? await _modelService.GetModelAsync(scenarioId, modelId)
+                ? await _modelService.GetAsync(scenarioId, modelId)
                 : await _modelService.GetBestModelAsync(scenarioId);
 
             if (selectedModel == null)
@@ -79,12 +90,19 @@ public class PredictionsController : ControllerBase
             await System.IO.File.WriteAllTextAsync(inputPath, content);
 
             // 예측 작업 생성
-            await _jobService.CreatePredictionJobAsync(scenarioId, selectedModel.ModelId, predictionId);
+            var environment = new Dictionary<string, object>(workflow.Environment)
+            {
+                ["modelId"] = selectedModel.ModelId,
+                ["predictionId"] = predictionId
+            };
+
+            await _jobService.CreateJobAsync(scenarioId, workflowName, environment);
 
             return Ok(new
             {
                 predictionId,
                 modelId = selectedModel.ModelId,
+                workflowName,
                 isUsingBestModel = modelId == null
             });
         }
@@ -105,7 +123,7 @@ public class PredictionsController : ControllerBase
         {
             // 1. 모델 검증 및 선택
             var selectedModel = modelId != null
-                ? await _modelService.GetModelAsync(scenarioId, modelId)
+                ? await _modelService.GetAsync(scenarioId, modelId)
                 : await _modelService.GetBestModelAsync(scenarioId);
 
             if (selectedModel == null)
@@ -199,12 +217,7 @@ public class PredictionsController : ControllerBase
                 }
             }
 
-            // 생성일시 기준 내림차순 정렬
-            predictions = predictions
-                .OrderByDescending(p => ((DateTime)p.GetType().GetProperty("createdAt")!.GetValue(p)!))
-                .ToList();
-
-            return Ok(predictions);
+            return Ok(predictions.OrderByDescending(p => ((DateTime)p.GetType().GetProperty("createdAt")!.GetValue(p)!)));
         }
         catch (Exception ex)
         {

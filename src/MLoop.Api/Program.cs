@@ -10,6 +10,8 @@ using MLoop;
 using MLoop.Api.InputFormatters;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
+using System.Text.Json;
+using MLoop.Api.Services.Handlers;
 
 var options = new WebApplicationOptions()
 {
@@ -51,7 +53,12 @@ builder.Services
         options.EnableEndpointRouting = false;
         options.InputFormatters.Add(new YamlInputFormatter());
     })
-    .AddJsonOptions(options => JsonHelper.ApplyTo(options.JsonSerializerOptions))
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        JsonHelper.ApplyTo(options.JsonSerializerOptions);
+    })
     .AddOData(options => options
         .AddRouteComponents("odata", EdmModelBuilder.GetEdmModel())
         .Select()
@@ -62,15 +69,26 @@ builder.Services
         .Expand()
     );
 
-// 나머지 서비스 설정
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddStorage(builder.Configuration);
+
+// Core services
 builder.Services.AddSingleton<ScenarioManager>();
 builder.Services.AddSingleton<JobManager>();
-builder.Services.AddSingleton<ScenarioService>();
-builder.Services.AddSingleton<JobService>();
-builder.Services.AddSingleton<ModelService>();
+builder.Services.AddSingleton<WorkflowManager>();
+
+// Add Handlers
+builder.Services.AddScoped<JobHandler>();
+builder.Services.AddScoped<WorkflowHandler>();
+builder.Services.AddScoped<ScenarioHandler>();
+builder.Services.AddScoped<ModelHandler>();
+
+// Services
+builder.Services.AddScoped<JobService>();
+builder.Services.AddScoped<WorkflowService>();
+builder.Services.AddScoped<ScenarioService>();
+builder.Services.AddScoped<ModelService>();
 
 var app = builder.Build();
 

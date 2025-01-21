@@ -10,6 +10,7 @@ using MLoop.Storages.Configuration;
 using MLoop.Worker;
 using MLoop.Worker.Configuration;
 using MLoop.Worker.Pipeline;
+using MLoop.Worker.Services;
 using MLoop.Worker.Steps;
 using MLoop.Worker.Steps.Registry;
 using MLoop.Worker.Tasks.MLNetPredictTask;

@@ -1,88 +1,117 @@
-﻿using MLoop.Models;
+﻿using MLoop.Api.Models.Models;
+using MLoop.Base;
+using MLoop.Models;
 using MLoop.Storages;
 
 namespace MLoop.Api.Services;
 
-public class ModelService
+public class ModelService : ScenarioServiceBase<MLModel, CreateModelRequest, UpdateModelRequest>
 {
     private readonly IFileStorage _storage;
-    private readonly ILogger<ModelService> _logger;
+    private readonly ModelHandler _modelHandler;
 
-    public ModelService(IFileStorage storage, ILogger<ModelService> logger)
+    public ModelService(
+        IFileStorage storage,
+        ModelHandler modelHandler,
+        ILogger<ModelService> logger) : base(logger)
     {
         _storage = storage;
-        _logger = logger;
+        _modelHandler = modelHandler;
+    }
+
+    public override async Task<MLModel> CreateAsync(string scenarioId, CreateModelRequest request)
+    {
+        var model = new MLModel(
+            request.ModelId,
+            request.MLType,
+            request.Command,
+            request.Arguments ?? []
+        )
+        {
+            ScenarioId = scenarioId
+        };
+
+        return await _modelHandler.ProcessAsync(model);
+    }
+
+    public override async Task<MLModel?> GetAsync(string scenarioId, string modelId)
+    {
+        var modelPath = Path.Combine(_storage.GetModelPath(scenarioId, modelId), "model.json");
+
+        if (!File.Exists(modelPath))
+            return null;
+
+        var json = await File.ReadAllTextAsync(modelPath);
+        return JsonHelper.Deserialize<MLModel>(json);
+    }
+
+    public override Task<MLModel> UpdateAsync(string scenarioId, string modelId, UpdateModelRequest request)
+    {
+        throw new NotImplementedException("Model updates are not supported");
+    }
+
+    public override Task DeleteAsync(string scenarioId, string modelId)
+    {
+        var modelPath = _storage.GetModelPath(scenarioId, modelId);
+
+        if (Directory.Exists(modelPath))
+            Directory.Delete(modelPath, true);
+        return Task.CompletedTask;
+    }
+
+    public async Task<MLModel?> GetBestModelAsync(string scenarioId)
+    {
+        var models = await GetModelsAsync(scenarioId);
+        return models.OrderByDescending(m => m.Metrics?.GetValueOrDefault("BestScore", 0))
+                    .FirstOrDefault();
     }
 
     public async Task<IEnumerable<MLModel>> GetModelsAsync(string scenarioId)
     {
-        var models = new List<MLModel>();
         var modelsDir = _storage.GetScenarioModelsDir(scenarioId);
-
         if (!Directory.Exists(modelsDir))
-            return models;
+            return [];
 
+        var models = new List<MLModel>();
         foreach (var modelDir in Directory.GetDirectories(modelsDir))
         {
             var modelId = Path.GetFileName(modelDir);
-            try
+            var model = await GetAsync(scenarioId, modelId);
+            if (model != null)
             {
-                var metadata = await GetModelAsync(scenarioId, modelId);
-                if (metadata != null)
-                {
-                    models.Add(metadata);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error loading model {ModelId} in scenario {ScenarioId}", modelId, scenarioId);
+                models.Add(model);
             }
         }
 
         return models;
     }
 
-    public async Task<MLModel?> GetModelAsync(string scenarioId, string modelId)
-    {
-        var metadataPath = Path.Combine(_storage.GetModelPath(scenarioId, modelId), "metadata.json");
-        if (!File.Exists(metadataPath))
-            return null;
-
-        var json = await File.ReadAllTextAsync(metadataPath);
-        var model = JsonHelper.Deserialize<MLModel>(json);
-        return model;
-    }
-
     public async Task<string?> GetModelTrainLogsAsync(string scenarioId, string modelId)
     {
-        var logPath = Path.Combine(_storage.GetModelPath(scenarioId, modelId), "train.log");
-        if (!File.Exists(logPath))
+        var logsPath = Path.Combine(_storage.GetModelPath(scenarioId, modelId), "train.log");
+        if (!File.Exists(logsPath))
             return null;
 
-        return await File.ReadAllTextAsync(logPath);
+        return await File.ReadAllTextAsync(logsPath);
     }
 
     public async Task<MLModelMetrics?> GetModelMetricsAsync(string scenarioId, string modelId)
     {
-        var metricsPath = Path.Combine(_storage.GetModelPath(scenarioId, modelId), "metrics.json");
-        if (!File.Exists(metricsPath))
-            return null;
-
-        var json = await File.ReadAllTextAsync(metricsPath);
-        return JsonHelper.Deserialize<MLModelMetrics>(json);
+        var model = await GetAsync(scenarioId, modelId);
+        return model?.Metrics;
     }
 
-    public async Task<MLModel?> GetBestModelAsync(string scenarioId)
+    public async Task<Dictionary<string, bool>> ValidateModelAsync(string scenarioId, string modelId)
     {
-        var models = await GetModelsAsync(scenarioId);
-        foreach(var model in models)
+        _ = await GetAsync(scenarioId, modelId) ?? throw new ValidationException($"Model {modelId} not found");
+        var modelPath = _storage.GetModelPath(scenarioId, modelId);
+        var validation = new Dictionary<string, bool>
         {
-            model.Metrics = await GetModelMetricsAsync(scenarioId, model.ModelId);
-        }
+            ["exists"] = Directory.Exists(modelPath),
+            ["hasMetadata"] = File.Exists(Path.Combine(modelPath, "model.json")),
+            ["hasModelFiles"] = Directory.GetFiles(modelPath).Length > 1
+        };
 
-        var bestModel = models.OrderByDescending(m => m.Metrics?.GetValueOrDefault("BestScore", 0.0))
-                             .ThenByDescending(m => m.CreatedAt)
-                             .FirstOrDefault();
-        return bestModel;
+        return validation;
     }
 }

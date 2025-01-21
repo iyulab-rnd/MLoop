@@ -9,7 +9,7 @@ public static class EdmModelBuilder
     public static IEdmModel GetEdmModel()
     {
         var builder = new ODataConventionModelBuilder();
-        builder.EntitySet<ScenarioMetadata>("Scenarios");
+        builder.EntitySet<MLScenario>("Scenarios");
         return builder.GetEdmModel();
     }
 }

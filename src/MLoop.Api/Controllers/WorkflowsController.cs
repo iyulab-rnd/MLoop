@@ -1,164 +1,104 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
-using MLoop.Storages;
+using MLoop.Api.Services;
 using MLoop.Models.Workflows;
 
 namespace MLoop.Api.Controllers;
 
 [ApiController]
 [Route("/api/scenarios/{scenarioId}/workflows")]
-public class WorkflowController : ControllerBase
+public class WorkflowsController : ControllerBase
 {
-    private readonly IFileStorage _storage;
-    private readonly ILogger<WorkflowController> _logger;
+    private readonly WorkflowService _workflowService;
+    private readonly ILogger<WorkflowsController> _logger;
 
-    public WorkflowController(
-        IFileStorage storage,
-        ILogger<WorkflowController> logger)
+    public WorkflowsController(
+        WorkflowService workflowService,
+        ILogger<WorkflowsController> logger)
     {
-        _storage = storage;
+        _workflowService = workflowService;
         _logger = logger;
     }
 
-    [HttpGet("train")]
-    public async Task<IActionResult> GetTrainWorkflow(string scenarioId)
-    {
-        return await GetWorkflow(scenarioId, "train");
-    }
-
-    [HttpGet("predict")]
-    public async Task<IActionResult> GetPredictWorkflow(string scenarioId)
-    {
-        return await GetWorkflow(scenarioId, "predict");
-    }
-
-    [HttpPost("train")]
-    public async Task<IActionResult> UpdateTrainWorkflow(string scenarioId, [FromBody] string yamlContent)
-    {
-        return await UpdateWorkflow(scenarioId, yamlContent, "train");
-    }
-
-    [HttpPost("predict")]
-    public async Task<IActionResult> UpdatePredictWorkflow(string scenarioId, [FromBody] string yamlContent)
-    {
-        return await UpdateWorkflow(scenarioId, yamlContent, "predict");
-    }
-
-    private async Task<IActionResult> GetWorkflow(string scenarioId, string workflowType)
+    [HttpGet]
+    public async Task<IActionResult> GetWorkflows(string scenarioId)
     {
         try
         {
-            var workflowPath = GetWorkflowPath(scenarioId, workflowType);
-
-            if (!System.IO.File.Exists(workflowPath))
-            {
-                return NoContent();
-            }
-
-            var yamlContent = await System.IO.File.ReadAllTextAsync(workflowPath);
-
-            // Validate the existing YAML to ensure it's still valid
-            if (!ValidateWorkflow(yamlContent, out var error))
-            {
-                _logger.LogWarning("Invalid {WorkflowType} workflow found for scenario {ScenarioId}: {Error}",
-                    workflowType, scenarioId, error);
-                return StatusCode(500, $"Stored workflow is invalid: {error}");
-            }
-
-            return Ok(yamlContent);
+            var workflows = await _workflowService.GetWorkflowsAsync(scenarioId);
+            return Ok(workflows);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving {WorkflowType} workflow for scenario {ScenarioId}",
-                workflowType, scenarioId);
-            return StatusCode(500, $"Error retrieving {workflowType} workflow");
+            _logger.LogError(ex, "Error getting workflows for scenario {ScenarioId}", scenarioId);
+            return StatusCode(500, new { error = "Error retrieving workflows" });
         }
     }
 
-    private async Task<IActionResult> UpdateWorkflow(string scenarioId, string yamlContent, string workflowType)
+    [HttpGet("{name}")]
+    public async Task<IActionResult> GetWorkflow(string scenarioId, string name)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(yamlContent))
-            {
-                return BadRequest("Workflow content is required");
-            }
+            var yaml = await _workflowService.GetWorkflowYamlAsync(scenarioId, name);
+            if (yaml == null)
+                return NotFound(new { error = $"Workflow '{name}' not found in scenario {scenarioId}" });
 
-            // Validate YAML structure
-            if (!ValidateWorkflow(yamlContent, out var error))
-            {
-                return BadRequest(error);
-            }
-
-            var workflowPath = GetWorkflowPath(scenarioId, workflowType);
-            EnsureWorkflowDirectoryExists(scenarioId);
-
-            // Save content
-            await System.IO.File.WriteAllTextAsync(workflowPath, yamlContent);
-
-            _logger.LogInformation("Updated {WorkflowType} workflow for scenario {ScenarioId}",
-                workflowType, scenarioId);
-            return Ok(new { message = $"{workflowType} workflow updated successfully" });
+            return Content(yaml, "text/yaml");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating {WorkflowType} workflow for scenario {ScenarioId}",
-                workflowType, scenarioId);
-            return StatusCode(500, $"Error updating {workflowType} workflow");
+            _logger.LogError(ex, "Error getting workflow '{Name}' for scenario {ScenarioId}", name, scenarioId);
+            return StatusCode(500, new { error = "Error retrieving workflow" });
         }
     }
 
-    private string GetWorkflowPath(string scenarioId, string workflowType)
+    [HttpPost("{name?}")]
+    [HttpPut("{name}")]
+    public async Task<IActionResult> UpsertWorkflow(string scenarioId, string? name = "default_train")
     {
-        var scenarioBaseDir = _storage.GetScenarioBaseDir(scenarioId);
-        var workflowsDir = Path.Combine(scenarioBaseDir, "workflows");
-        return Path.Combine(workflowsDir, $"{workflowType}.yaml");
+        if (!Request.ContentType?.Contains("yaml") ?? true)
+        {
+            return BadRequest(new { error = "Content-Type must be text/yaml" });
+        }
+
+        try
+        {
+            string yamlContent;
+            using (var reader = new StreamReader(Request.Body))
+            {
+                yamlContent = await reader.ReadToEndAsync();
+            }
+
+            await _workflowService.ValidateAndSaveWorkflowAsync(scenarioId, name, yamlContent);
+            return Ok(new { message = "Workflow saved successfully" });
+        }
+        catch (WorkflowValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error saving workflow '{Name}' for scenario {ScenarioId}", name, scenarioId);
+            return StatusCode(500, new { error = "Error saving workflow" });
+        }
     }
 
-    private void EnsureWorkflowDirectoryExists(string scenarioId)
-    {
-        var scenarioBaseDir = _storage.GetScenarioBaseDir(scenarioId);
-        var workflowsDir = Path.Combine(scenarioBaseDir, "workflows");
-        Directory.CreateDirectory(workflowsDir);
-    }
-
-    private static bool ValidateWorkflow(string yamlContent, out string? error)
+    [HttpDelete("{name}")]
+    public async Task<IActionResult> DeleteWorkflow(string scenarioId, string name)
     {
         try
         {
-            var deserializer = new DeserializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .Build();
-            var workflow = deserializer.Deserialize<WorkflowConfig>(yamlContent);
+            var workflow = await _workflowService.GetAsync(scenarioId, name);
+            if (workflow == null)
+                return NotFound(new { error = $"Workflow '{name}' not found in scenario {scenarioId}" });
 
-            if (workflow?.Steps == null || !workflow.Steps.Any())
-            {
-                error = "Workflow must contain at least one step";
-                return false;
-            }
-
-            foreach (var step in workflow.Steps)
-            {
-                if (string.IsNullOrEmpty(step.Name))
-                {
-                    error = "Each step must have a name";
-                    return false;
-                }
-                if (string.IsNullOrEmpty(step.Type))
-                {
-                    error = "Each step must have a type";
-                    return false;
-                }
-            }
-
-            error = null;
-            return true;
+            await _workflowService.DeleteAsync(scenarioId, name);
+            return NoContent();
         }
-        catch (YamlDotNet.Core.YamlException ex)
+        catch (Exception ex)
         {
-            error = $"Invalid YAML format: {ex.Message}";
-            return false;
+            _logger.LogError(ex, "Error deleting workflow '{Name}' for scenario {ScenarioId}", name, scenarioId);
+            return StatusCode(500, new { error = "Error deleting workflow" });
         }
     }
 }
