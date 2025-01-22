@@ -1,17 +1,13 @@
 using Microsoft.AspNetCore.Http.Features;
-using MLoop.Api.Services;
 using MLoop.Api;
 using MLoop.Services;
 using MLoop.Api.Infrastructure.OData;
 using Microsoft.AspNetCore.OData;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Diagnostics;
-using MLoop;
 using MLoop.Api.InputFormatters;
 using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.Extensions.FileProviders;
 using System.Text.Json;
-using MLoop.Api.Services.Handlers;
 
 var options = new WebApplicationOptions()
 {
@@ -52,6 +48,7 @@ builder.Services
     {
         options.EnableEndpointRouting = false;
         options.InputFormatters.Add(new YamlInputFormatter());
+        options.InputFormatters.Add(new TsvInputFormatter());
     })
     .AddJsonOptions(options =>
     {

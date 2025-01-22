@@ -68,7 +68,7 @@ public class ScenarioService
             scenario.MLType,
             HasTrainingData = Directory.Exists(_storage.GetScenarioDataDir(scenarioId)),
             LatestJobStatus = latestJob?.Status.ToString(),
-            LatestJobType = latestJob?.JobType.ToString(),
+            LatestJobType = latestJob?.Type.ToString(),
             LastUpdated = latestJob?.CompletedAt ?? scenario.CreatedAt
         };
     }
@@ -111,7 +111,7 @@ public class ScenarioService
             ?? throw new KeyNotFoundException($"Scenario {scenarioId} not found");
 
         var workflow = await _workflowService.GetAsync(scenarioId, workflowName);
-        if (workflow == null || workflow.Type != WorkflowType.Train)
+        if (workflow == null || workflow.Type != JobTypes.Train)
         {
             throw new WorkflowNotFoundException(workflowName, scenarioId);
         }
@@ -130,7 +130,7 @@ public class ScenarioService
         }
 
         // 새 training job 생성
-        var jobId = await _jobService.CreateJobAsync(
+        var jobId = await _jobService.CreateTrainJobAsync(
             scenarioId,
             workflowName,
             workflow.Environment);

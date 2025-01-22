@@ -16,9 +16,9 @@
 /storage/scenarios/<scenarioId>/models/<modelId>/Model # Model Proj
 /storage/scenarios/<scenarioId>/models/<modelId>/Model/Model.mlnet # MLNet Model File
 
-/storage/scenarios/<scenarioId>/predictions/<predictionId>/input.tsv # prediction request file (tsv | csv)
-/storage/scenarios/<scenarioId>/predictions/<predictionId>/input1.png...input100.png # many images
-/storage/scenarios/<scenarioId>/predictions/<predictionId>/result.csv # prediction result
+/storage/scenarios/<scenarioId>/predictions/<jobId>/input.tsv # prediction request file (tsv | csv)
+/storage/scenarios/<scenarioId>/predictions/<jobId>/input1.png...input100.png # many images
+/storage/scenarios/<scenarioId>/predictions/<jobId>/result.csv # prediction result
 ```
 
 

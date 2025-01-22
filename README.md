@@ -130,7 +130,7 @@ dotnet run --project MLoop.Api
 
 - `POST /api/scenarios/{scenarioId}/predict`: 예측 수행
 - `GET /api/scenarios/{scenarioId}/predictions`: 예측 이력 조회
-- `GET /api/scenarios/{scenarioId}/predictions/{predictionId}`: 예측 결과 조회
+- `GET /api/scenarios/{scenarioId}/predictions/{jobId}`: 예측 결과 조회
 - `POST /api/scenarios/{scenarioId}/predictions/cleanup`: 완료된 예측 정리
 
 ### 워크플로우

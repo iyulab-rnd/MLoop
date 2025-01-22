@@ -12,7 +12,7 @@ public class Workflow : IScenarioEntity
     public string Name { get; set; } = null!;
 
     [Required]
-    public WorkflowType Type { get; set; }
+    public JobTypes Type { get; set; }
 
     [YamlMember(Alias = "env")]
     public Dictionary<string, object> Environment { get; set; } = [];
@@ -30,10 +30,6 @@ public class Workflow : IScenarioEntity
         if (string.IsNullOrWhiteSpace(Name) || !NamePattern.IsMatch(Name))
         {
             return false;
-        }
-        if (Type == WorkflowType.General)
-        {
-            return true;
         }
         if (Steps.Count == 0)
         {

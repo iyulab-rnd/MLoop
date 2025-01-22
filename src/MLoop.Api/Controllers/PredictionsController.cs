@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using MLoop.Api.Services;
+using MLoop.Models;
 using MLoop.Models.Jobs;
 using MLoop.Models.Workflows;
 using MLoop.Storages;
@@ -35,16 +37,26 @@ public class PredictionsController : ControllerBase
     [Route("/api/scenarios/{scenarioId}/predictions")]
     [Route("/api/scenarios/{scenarioId}/models/{modelId}/predict")]
     public async Task<IActionResult> Predict(
-    string scenarioId,
-    [FromBody] string content,
-    [FromQuery] string? modelId = null,
-    [FromQuery] string workflowName = "default_predict")
+        string scenarioId,
+        [FromBody] string content,
+        [FromRoute] string? routeModelId = null,
+        [FromQuery] string? queryModelId = null,
+        [FromQuery] string? workflowName = "default_predict")
     {
+        var modelId = routeModelId ?? queryModelId;
         try
         {
             // 워크플로우 검증
-            var workflow = await _workflowService.GetAsync(scenarioId, workflowName);
-            if (workflow == null || workflow.Type != WorkflowType.Predict)
+            var workflow = await _workflowService.GetAsync(scenarioId, workflowName!);
+            if (workflow == null && workflowName == "default_predict")
+            {
+                workflow = new Workflow()
+                {
+                    Name = workflowName,
+                    Type = JobTypes.Predict,
+                };
+            }
+            else if (workflow == null || workflow.Type != JobTypes.Predict)
             {
                 return BadRequest(new { message = $"Invalid prediction workflow '{workflowName}'" });
             }
@@ -81,26 +93,32 @@ public class PredictionsController : ControllerBase
             }
 
             // 예측 ID 생성 및 디렉토리 생성
-            var predictionId = Guid.NewGuid().ToString("N");
-            var predictionDir = _storage.GetPredictionDir(scenarioId, predictionId);
+            var jobId = Guid.NewGuid().ToString("N");
+            var predictionDir = _storage.GetPredictionDir(scenarioId, jobId);
             Directory.CreateDirectory(predictionDir);
 
             // 입력 파일 저장
-            var inputPath = _storage.GetPredictionInputPath(scenarioId, predictionId, extension);
+            var inputPath = _storage.GetPredictionInputPath(scenarioId, jobId, extension);
             await System.IO.File.WriteAllTextAsync(inputPath, content);
 
             // 예측 작업 생성
-            var environment = new Dictionary<string, object>(workflow.Environment)
+            var variables = new Dictionary<string, object>(workflow.Environment)
             {
+                ["jobId"] = jobId,
                 ["modelId"] = selectedModel.ModelId,
-                ["predictionId"] = predictionId
+                ["fileName"] = Path.GetFileName(inputPath)
             };
 
-            await _jobService.CreateJobAsync(scenarioId, workflowName, environment);
+            await _jobService.CreatePredictionJobAsync(
+                scenarioId, 
+                workflowName!, 
+                jobId,
+                modelId!,
+                variables);
 
             return Ok(new
             {
-                predictionId,
+                jobId,
                 modelId = selectedModel.ModelId,
                 workflowName,
                 isUsingBestModel = modelId == null
@@ -117,8 +135,12 @@ public class PredictionsController : ControllerBase
     public async Task<IActionResult> CreateImageClassificationPrediction(
         string scenarioId,
         [FromForm] IFormFile file,
-        [FromQuery] string? modelId = null)
+        [FromRoute] string? routeModelId = null,
+        [FromQuery] string? queryModelId = null,
+        [FromQuery] string? workflowName = "default_predict")
     {
+        var modelId = routeModelId ?? queryModelId;
+
         try
         {
             // 1. 모델 검증 및 선택
@@ -141,8 +163,8 @@ public class PredictionsController : ControllerBase
             }
 
             // 2. 예측 ID 생성 및 디렉토리 준비
-            var predictionId = Guid.NewGuid().ToString("N");
-            var predictionDir = _storage.GetPredictionDir(scenarioId, predictionId);
+            var jobId = Guid.NewGuid().ToString("N");
+            var predictionDir = _storage.GetPredictionDir(scenarioId, jobId);
             Directory.CreateDirectory(predictionDir);
 
             // 3. 파일 저장
@@ -154,19 +176,24 @@ public class PredictionsController : ControllerBase
                 await file.CopyToAsync(stream);
             }
 
+            var variables = new Dictionary<string, object>
+            {
+                ["jobId"] = jobId,
+                ["modelId"] = selectedModel.ModelId,
+                ["fileName"] = fileName
+            };
+
             // 4. 예측 작업 생성
             await _jobService.CreatePredictionJobAsync(
                 scenarioId,
+                workflowName!,
+                jobId,
                 selectedModel.ModelId,
-                predictionId,
-                new Dictionary<string, object>
-                {
-                    ["fileName"] = fileName
-                });
+                variables);
 
             return Ok(new
             {
-                predictionId,
+                jobId,
                 modelId = selectedModel.ModelId,
                 fileName,
                 isUsingBestModel = modelId == null
@@ -195,17 +222,17 @@ public class PredictionsController : ControllerBase
 
             foreach (var predictionDir in predictionDirs)
             {
-                var predictionId = Path.GetFileName(predictionDir);
-                var job = await _jobService.GetPredictionJobAsync(scenarioId, predictionId);
+                var jobId = Path.GetFileName(predictionDir);
+                var job = await _jobService.GetPredictionJobAsync(scenarioId, jobId);
 
                 if (job != null)
                 {
-                    var resultPath = _storage.GetPredictionResultPath(scenarioId, predictionId);
+                    var resultPath = _storage.GetPredictionResultPath(scenarioId, jobId);
                     var inputPath = Directory.GetFiles(predictionDir, "input.*").FirstOrDefault();
 
                     predictions.Add(new
                     {
-                        predictionId = job.JobId,
+                        jobId = job.JobId,
                         modelId = job.ModelId,
                         status = job.Status.ToString(),
                         createdAt = job.CreatedAt,
@@ -226,22 +253,22 @@ public class PredictionsController : ControllerBase
         }
     }
 
-    [HttpGet("{predictionId}")]
-    public async Task<IActionResult> GetPredictionResult(string scenarioId, string predictionId)
+    [HttpGet("{jobId}")]
+    public async Task<IActionResult> GetPredictionResult(string scenarioId, string jobId)
     {
         try
         {
-            var predictionDir = _storage.GetPredictionDir(scenarioId, predictionId);
+            var predictionDir = _storage.GetPredictionDir(scenarioId, jobId);
             if (!Directory.Exists(predictionDir))
             {
                 return NotFound(new { message = "Prediction not found" });
             }
 
-            var resultPath = _storage.GetPredictionResultPath(scenarioId, predictionId);
+            var resultPath = _storage.GetPredictionResultPath(scenarioId, jobId);
             if (!System.IO.File.Exists(resultPath))
             {
                 // 작업 상태 확인
-                var job1 = await _jobService.GetPredictionJobAsync(scenarioId, predictionId);
+                var job1 = await _jobService.GetPredictionJobAsync(scenarioId, jobId);
                 if (job1 == null)
                 {
                     return StatusCode(500, new { message = "Prediction job not found" });
@@ -260,12 +287,12 @@ public class PredictionsController : ControllerBase
             return File(
                 System.Text.Encoding.UTF8.GetBytes(resultContent),
                 "text/csv",
-                $"result_{predictionId}.csv"
+                $"result_{jobId}.csv"
             );
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting prediction result for {PredictionId}", predictionId);
+            _logger.LogError(ex, "Error getting prediction result for {PredictionId}", jobId);
             return StatusCode(500, new { message = "Error retrieving prediction result" });
         }
     }
@@ -286,10 +313,10 @@ public class PredictionsController : ControllerBase
 
             foreach (var predictionDir in predictionDirs)
             {
-                var predictionId = Path.GetFileName(predictionDir);
+                var jobId = Path.GetFileName(predictionDir);
 
                 // 작업 상태 확인
-                var job = await _jobService.GetPredictionJobAsync(scenarioId, predictionId);
+                var job = await _jobService.GetPredictionJobAsync(scenarioId, jobId);
 
                 // 완료되었거나 실패한 예측만 정리
                 if (job?.Status is MLJobStatus.Completed or MLJobStatus.Failed)
@@ -300,7 +327,7 @@ public class PredictionsController : ControllerBase
                         cleanedCount++;
                         _logger.LogInformation(
                             "Cleaned up prediction {PredictionId} for scenario {ScenarioId}",
-                            predictionId, scenarioId);
+                            jobId, scenarioId);
                     }
                     catch (Exception ex)
                     {
@@ -326,12 +353,12 @@ public class PredictionsController : ControllerBase
         }
     }
 
-    [HttpGet("{predictionId}/files")]
-    public IActionResult GetPredictionFiles(string scenarioId, string predictionId)
+    [HttpGet("{jobId}/files")]
+    public IActionResult GetPredictionFiles(string scenarioId, string jobId)
     {
         try
         {
-            var predictionDir = _storage.GetPredictionDir(scenarioId, predictionId);
+            var predictionDir = _storage.GetPredictionDir(scenarioId, jobId);
             if (!Directory.Exists(predictionDir))
             {
                 return NotFound(new { message = "Prediction not found" });
@@ -352,17 +379,17 @@ public class PredictionsController : ControllerBase
         {
             _logger.LogError(ex,
                 "Error listing files for prediction {PredictionId} in scenario {ScenarioId}",
-                predictionId, scenarioId);
+                jobId, scenarioId);
             return StatusCode(500, new { message = "Error listing prediction files" });
         }
     }
 
-    [HttpGet("{predictionId}/files/{*filePath}")]
-    public IActionResult DownloadFile(string scenarioId, string predictionId, string filePath)
+    [HttpGet("{jobId}/files/{*filePath}")]
+    public IActionResult DownloadFile(string scenarioId, string jobId, string filePath)
     {
         try
         {
-            var predictionDir = _storage.GetPredictionDir(scenarioId, predictionId);
+            var predictionDir = _storage.GetPredictionDir(scenarioId, jobId);
             if (!Directory.Exists(predictionDir))
             {
                 return NotFound(new { message = "Prediction not found" });
@@ -406,7 +433,7 @@ public class PredictionsController : ControllerBase
         {
             _logger.LogError(ex,
                 "Error downloading file {FilePath} for prediction {PredictionId} in scenario {ScenarioId}",
-                filePath, predictionId, scenarioId);
+                filePath, jobId, scenarioId);
             return StatusCode(500, new { message = "Error downloading file" });
         }
     }

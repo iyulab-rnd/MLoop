@@ -1,6 +1,6 @@
 @host = https://localhost:7102
-@scenarioId = 8893c126e2ac48ecae633557d7d64f6d
-
+@scenarioId = 68d4fa5974da492c9e7c452dc73c05c4
+@jobId = ec18b72071fc4a059a5fcad069794163
 ### 1. 시나리오 생성
 POST {{host}}/api/scenarios
 Content-Type: application/json
@@ -10,6 +10,9 @@ Content-Type: application/json
     "mlType": "classification",
     "tags": ["github", "issue", "classification"]
 }
+
+### 시나리오 가져오기
+GET {{host}}/api/scenarios/{{scenarioId}}
 
 ### 2. 훈련 데이터 업로드 
 POST {{host}}/api/scenarios/{{scenarioId}}/data
@@ -56,9 +59,9 @@ steps:
         # 옵션 설정
         has-header: true
         allow-quote: true
-        train-time: 600
+        train-time: 120
         ignore-cols: ID 
-        
+
 ### 워크플로우 가져오기
 GET {{host}}/api/scenarios/{{scenarioId}}/workflows/default_train
 
@@ -68,21 +71,30 @@ GET {{host}}/api/scenarios/{{scenarioId}}/workflows
 ### 7. 모델 학습 시작
 POST {{host}}/api/scenarios/{{scenarioId}}/train
 
-### 8. 학습 작업 상태 확인 (jobId는 이전 응답에서 받은 것으로 교체)
-GET {{host}}/api/scenarios/{{scenarioId}}/jobs/{jobId}
+### 8. 학습 작업 목록 확인
+GET {{host}}/api/scenarios/{{scenarioId}}/jobs
+
+### 8. 학습 작업 상태 확인`
+GET {{host}}/api/scenarios/{{scenarioId}}/jobs/{{jobId}}
+
+### 8. 학습 로그 확인
+GET {{host}}/api/scenarios/{{scenarioId}}/jobs/{{jobId}}/logs
 
 ### 9. 학습된 모델 목록 확인
 GET {{host}}/api/scenarios/{{scenarioId}}/models
 
-### 10. 예측 테스트
+### 10. 예측 요청
 POST {{host}}/api/scenarios/{{scenarioId}}/predict
 Content-Type: text/tab-separated-values
 
-Title
-Update documentation for new API endpoints
-Fix memory leak in background worker
-Add support for dark mode in UI
-Improve error handling in authentication module
+Python Programming	How to Handle Large JSON Files Efficiently in Python?	I'm working on a Python project to process large JSON files (several GB). Loading the entire file into memory with json.load() causes crashes. I need an efficient way to extract specific keys and values without loading the full file. How can I handle large JSON files line by line or in chunks?
 
 ### 11. 예측 결과 확인 (predictionId는 이전 응답에서 받은 것으로 교체)
-GET {{host}}/api/scenarios/{{scenarioId}}/predictions/{predictionId}
+@jobId = c2df618a442941c48c8177c375ec084a
+GET {{host}}/api/scenarios/{{scenarioId}}/predictions/{{jobId}}
+
+###
+GET {{host}}/api/scenarios/{{scenarioId}}/jobs/{{jobId}}/logs
+
+###
+GET {{host}}/api/scenarios/{{scenarioId}}/predictions

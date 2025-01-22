@@ -1,19 +1,17 @@
 ﻿using Microsoft.Extensions.Logging;
-using MLoop.Models.Steps;
-using MLoop.Models.Workflows;
 using MLoop.Models.Jobs;
-using MLoop.Worker.Steps.Registry;
+using MLoop.Models.Workflows;
 using System.Diagnostics;
 
 namespace MLoop.Worker.Pipeline;
 
-public class PipelineExecutor
+public class PipelineExecutor : IPipeline
 {
-    private readonly StepRegistry _stepRegistry;
     private readonly ILogger<PipelineExecutor> _logger;
+    private readonly IStepRegistry _stepRegistry;
 
     public PipelineExecutor(
-        StepRegistry stepRegistry,
+        IStepRegistry stepRegistry,
         ILogger<PipelineExecutor> logger)
     {
         _stepRegistry = stepRegistry;
@@ -21,84 +19,71 @@ public class PipelineExecutor
     }
 
     public async Task ExecuteAsync(
-        WorkflowConfig workflow,
-        WorkflowContext context,
+        Workflow workflow,
+        JobContext context,
         CancellationToken cancellationToken = default)
     {
         using var scope = _logger.BeginScope(new Dictionary<string, object>
         {
             ["ScenarioId"] = context.ScenarioId,
             ["JobId"] = context.JobId,
-            ["WorkflowSteps"] = workflow.Steps.Count
+            ["WorkflowSteps"] = workflow.Steps.Count,
+            ["WorkflowType"] = workflow.Type.ToString()
         });
 
         var completedSteps = new HashSet<string>();
         var stepTimer = new Stopwatch();
 
-        await LogToJobFile(context,
+        await context.LogAsync(
             $"Starting workflow execution at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss UTC}\n" +
-            $"Total steps: {workflow.Steps.Count}\n");
+            $"Total steps: {workflow.Steps.Count}\n" +
+            $"Workflow type: {workflow.Type}\n" +
+            $"Available runners: {string.Join(", ", _stepRegistry.GetSupportedTypes())}");
 
-        foreach (var workflowStep in workflow.Steps)
+        foreach (var step in workflow.Steps)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Transform workflow step to IStep
-            var step = WorkflowStep.FromWorkflowConfig(workflowStep);
-
-            // Check dependencies with try/catch for better error logging
             try
             {
-                CheckStepDependencies(step, completedSteps);
-            }
-            catch (Exception ex)
-            {
-                var message = $"Error checking dependencies for step '{step.Name}': {ex.Message}";
-                await LogToJobFile(context, message);
-                _logger.LogError(ex, message);
-                throw new JobProcessException(JobFailureType.ConfigurationError, message, ex);
-            }
+                await ValidateStepAsync(step, completedSteps);
+                ValidateRunner(step);
 
-            // Get and validate runner
-            if (!_stepRegistry.HasRunner(step.Type))
-            {
-                var message = $"No runner found for step type: {step.Type}";
-                await LogToJobFile(context, $"Error: {message}");
-                throw new JobProcessException(JobFailureType.ConfigurationError, message);
-            }
+                var runner = _stepRegistry.GetRunner(step.Type);
 
-            var runner = _stepRegistry.GetRunner(step.Type);
+                using var stepScope = _logger.BeginScope(new Dictionary<string, object>
+                {
+                    ["StepName"] = step.Name,
+                    ["StepType"] = step.Type
+                });
 
-            using var stepScope = _logger.BeginScope(new Dictionary<string, object>
-            {
-                ["StepName"] = step.Name,
-                ["StepType"] = step.Type
-            });
+                await context.LogAsync(
+                    $"\nStarting step '{step.Name}' of type '{step.Type}' " +
+                    $"at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss UTC}");
 
-            await LogToJobFile(context,
-                $"\nStarting step '{step.Name}' of type '{step.Type}' " +
-                $"at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss UTC}");
-
-            try
-            {
                 stepTimer.Restart();
                 await runner.RunAsync(step, context);
                 stepTimer.Stop();
 
                 completedSteps.Add(step.Name);
 
-                await LogToJobFile(context,
+                await context.LogAsync(
                     $"Completed step '{step.Name}' in {stepTimer.ElapsedMilliseconds}ms");
 
-                // Store step execution results
                 context.Variables[$"{step.Name}_completed_at"] = DateTime.UtcNow;
                 context.Variables[$"{step.Name}_elapsed_ms"] = stepTimer.ElapsedMilliseconds;
             }
             catch (Exception ex)
             {
-                await LogToJobFile(context,
-                    $"Error in step '{step.Name}' after {stepTimer.ElapsedMilliseconds}ms:\n{ex}");
-                _logger.LogError(ex, "Error executing step {StepName} of type {StepType}", step.Name, step.Type);
+                await context.LogAsync(
+                    $"Error in step '{step.Name}' after {stepTimer.ElapsedMilliseconds}ms:\n{ex}",
+                    LogLevel.Error);
+
+                _logger.LogError(ex,
+                    "Error executing step {StepName} of type {StepType}",
+                    step.Name,
+                    step.Type);
+
                 if (ex is JobProcessException)
                     throw;
                 else
@@ -106,38 +91,38 @@ public class PipelineExecutor
             }
         }
 
-        await LogToJobFile(context,
+        await context.LogAsync(
             $"\nWorkflow completed at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss UTC}\n" +
             $"Total steps completed: {completedSteps.Count}/{workflow.Steps.Count}");
     }
 
-    private void CheckStepDependencies(IStep step, HashSet<string> completedSteps)
+    private async Task ValidateStepAsync(WorkflowStep step, HashSet<string> completedSteps)
     {
-        if (step.Dependencies != null)
+        if (string.IsNullOrWhiteSpace(step.Name))
         {
-            var missingDeps = step.Dependencies
-                .Where(dep => !completedSteps.Contains(dep))
-                .ToList();
-
-            if (missingDeps.Any())
-            {
-                var message = $"Step '{step.Name}' requires steps that haven't been completed: {string.Join(", ", missingDeps)}";
-                throw new InvalidOperationException(message);
-            }
+            throw new JobProcessException(
+                JobFailureType.ConfigurationError,
+                "Step name is required");
         }
+
+        if (string.IsNullOrWhiteSpace(step.Type))
+        {
+            throw new JobProcessException(
+                JobFailureType.ConfigurationError,
+                $"Step type is required for step '{step.Name}'");
+        }
+
+        await Task.CompletedTask;
     }
 
-    private async Task LogToJobFile(WorkflowContext context, string message)
+    private void ValidateRunner(WorkflowStep step)
     {
-        try
+        if (!_stepRegistry.HasRunner(step.Type))
         {
-            var logPath = context.GetJobLogsPath();
-            Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-            await File.AppendAllTextAsync(logPath, $"{message}\n", context.CancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to write to job log file: {Message}", message);
+            throw new JobProcessException(
+                JobFailureType.ConfigurationError,
+                $"No runner found for step type: {step.Type}. " +
+                $"Available runners: {string.Join(", ", _stepRegistry.GetSupportedTypes())}");
         }
     }
 }

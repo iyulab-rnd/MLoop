@@ -1,5 +1,6 @@
 ﻿using MLoop.Api.Models.Jobs;
 using MLoop.Base;
+using MLoop.Models;
 using MLoop.Models.Jobs;
 using MLoop.Services;
 
@@ -62,7 +63,7 @@ public class JobService : ScenarioServiceBase<MLJob, CreateJobRequest, UpdateJob
         return await _jobManager.GetScenarioJobsAsync(scenarioId);
     }
 
-    public async Task<string> CreateJobAsync(
+    public async Task<string> CreateTrainJobAsync(
         string scenarioId,
         string workflowName,
         Dictionary<string, object>? variables = null)
@@ -70,7 +71,7 @@ public class JobService : ScenarioServiceBase<MLJob, CreateJobRequest, UpdateJob
         var request = new CreateJobRequest
         {
             WorkflowName = workflowName,
-            JobType = MLJobType.Train,
+            JobType = JobTypes.Train,
             Variables = variables
         };
 
@@ -80,14 +81,15 @@ public class JobService : ScenarioServiceBase<MLJob, CreateJobRequest, UpdateJob
 
     public async Task<string> CreatePredictionJobAsync(
         string scenarioId,
+        string workflowName,
+        string jobId,
         string modelId,
-        string predictionId,
         Dictionary<string, object>? variables = null)
     {
         var request = new CreateJobRequest
         {
-            JobId = predictionId,
-            JobType = MLJobType.Predict,
+            JobId = jobId,
+            JobType = JobTypes.Predict,
             WorkflowName = "default_predict",
             ModelId = modelId,
             Variables = variables
@@ -132,9 +134,9 @@ public class JobService : ScenarioServiceBase<MLJob, CreateJobRequest, UpdateJob
         await _jobManager.SaveJobResultAsync(scenarioId, jobId, result);
     }
 
-    internal Task<MLJob?> GetPredictionJobAsync(string scenarioId, string predictionId)
+    internal Task<MLJob?> GetPredictionJobAsync(string scenarioId, string jobId)
     {
-        // predictionId is the same as jobId
-        return GetAsync(scenarioId, predictionId);
+        // jobId is the same as jobId
+        return GetAsync(scenarioId, jobId);
     }
 }

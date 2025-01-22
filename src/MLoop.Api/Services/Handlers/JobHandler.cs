@@ -1,5 +1,6 @@
 ﻿using MLoop.Api.Models.Jobs;
 using MLoop.Base;
+using MLoop.Models;
 using MLoop.Models.Jobs;
 using MLoop.Services;
 
@@ -34,6 +35,10 @@ public class JobHandler : HandlerBase<MLJob>
         if (string.IsNullOrEmpty(job.WorkflowName))
             throw new ValidationException("WorkflowName is required");
 
+        // JobType 검증 추가
+        if (!Enum.IsDefined(typeof(JobTypes), job.Type))
+            throw new ValidationException("Invalid JobType");
+
         return Task.CompletedTask;
     }
 
@@ -44,7 +49,7 @@ public class JobHandler : HandlerBase<MLJob>
             JobId = request.JobId ?? Guid.NewGuid().ToString("N"),
             ScenarioId = scenarioId,
             WorkflowName = request.WorkflowName,
-            JobType = request.JobType,
+            Type = request.JobType,
             Status = MLJobStatus.Waiting,
             CreatedAt = DateTime.UtcNow,
             ModelId = request.ModelId,

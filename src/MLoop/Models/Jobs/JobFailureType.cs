@@ -9,6 +9,8 @@ public enum JobFailureType
     ProcessError,
     FileNotFound,
     ConfigurationError,
-    MLNetError,
-    UnknownError
+    UnknownError,
+    ResourceExhausted,
+    TrainingError,
+    DataProcessingError,
 }

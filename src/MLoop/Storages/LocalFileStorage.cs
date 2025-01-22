@@ -18,7 +18,7 @@ public class LocalFileStorage : IFileStorage
 
     public Task<IEnumerable<string>> GetScenarioIdsAsync()
     {
-        var scenariosDir = Path.Combine(basePath, ScenariosDirName);
+        var scenariosDir = PathHelper.Combine(basePath, ScenariosDirName);
         if (!Directory.Exists(scenariosDir))
         {
             return Task.FromResult(Enumerable.Empty<string>());
@@ -32,31 +32,31 @@ public class LocalFileStorage : IFileStorage
     }
 
     public string GetScenarioBaseDir(string scenarioId)
-        => Path.Combine(basePath, ScenariosDirName, scenarioId);
+        => PathHelper.Combine(basePath, ScenariosDirName, scenarioId);
 
     public string GetScenarioDataDir(string scenarioId)
-        => Path.Combine(GetScenarioBaseDir(scenarioId), DataDirName);
+        => PathHelper.Combine(GetScenarioBaseDir(scenarioId), DataDirName);
 
     public string GetScenarioModelsDir(string scenarioId)
-        => Path.Combine(GetScenarioBaseDir(scenarioId), ModelsDirName);
+        => PathHelper.Combine(GetScenarioBaseDir(scenarioId), ModelsDirName);
 
     public string GetModelPath(string scenarioId, string modelId)
-        => Path.Combine(GetScenarioModelsDir(scenarioId), modelId);
+        => PathHelper.Combine(GetScenarioModelsDir(scenarioId), modelId);
 
     public string GetScenarioMetadataPath(string scenarioId)
-        => Path.Combine(GetScenarioBaseDir(scenarioId), "scenario.json");
+        => PathHelper.Combine(GetScenarioBaseDir(scenarioId), "scenario.json");
 
     public string GetScenarioJobsDir(string scenarioId)
-        => Path.Combine(GetScenarioBaseDir(scenarioId), JobsDirName);
+        => PathHelper.Combine(GetScenarioBaseDir(scenarioId), JobsDirName);
 
     public string GetJobPath(string scenarioId, string jobId)
-        => Path.Combine(GetScenarioJobsDir(scenarioId), $"{jobId}.json");
+        => PathHelper.Combine(GetScenarioJobsDir(scenarioId), $"{jobId}.json");
 
     public string GetJobResultPath(string scenarioId, string jobId)
-        => Path.Combine(GetScenarioJobsDir(scenarioId), $"{jobId}_result.json");
+        => PathHelper.Combine(GetScenarioJobsDir(scenarioId), $"{jobId}_result.json");
 
     public string GetJobLogsPath(string scenarioId, string jobId)
-        => Path.Combine(GetScenarioJobsDir(scenarioId), $"{jobId}.log");
+        => PathHelper.Combine(GetScenarioJobsDir(scenarioId), $"{jobId}.log");
 
     public Task<IEnumerable<FileInfo>> GetScenarioJobFilesAsync(string scenarioId)
     {
@@ -72,21 +72,21 @@ public class LocalFileStorage : IFileStorage
         return Task.FromResult(files);
     }
 
-    public string GetPredictionDir(string scenarioId, string predictionId)
-        => Path.Combine(GetScenarioBaseDir(scenarioId), PredictionsDirName, predictionId);
+    public string GetPredictionDir(string scenarioId, string jobId)
+        => PathHelper.Combine(GetScenarioBaseDir(scenarioId), PredictionsDirName, jobId);
 
-    public string GetPredictionInputPath(string scenarioId, string predictionId, string extension)
-        => Path.Combine(GetPredictionDir(scenarioId, predictionId), $"input{extension}");
+    public string GetPredictionInputPath(string scenarioId, string jobId, string extension)
+        => PathHelper.Combine(GetPredictionDir(scenarioId, jobId), $"input{extension}");
 
-    public string GetPredictionResultPath(string scenarioId, string predictionId)
-        => Path.Combine(GetPredictionDir(scenarioId, predictionId), "result.csv");
+    public string GetPredictionResultPath(string scenarioId, string jobId)
+        => PathHelper.Combine(GetPredictionDir(scenarioId, jobId), "result.csv");
 
     public string GetPredictionsDir(string scenarioId)
-        => Path.Combine(GetScenarioBaseDir(scenarioId), PredictionsDirName);
+        => PathHelper.Combine(GetScenarioBaseDir(scenarioId), PredictionsDirName);
 
     public Task<IEnumerable<FileInfo>> GetPredictionFiles(string scenarioId, string modelId)
     {
-        var predictionsDir = Path.Combine(GetModelPath(scenarioId, modelId), PredictionsDirName);
+        var predictionsDir = PathHelper.Combine(GetModelPath(scenarioId, modelId), PredictionsDirName);
         if (!Directory.Exists(predictionsDir))
         {
             return Task.FromResult(Enumerable.Empty<FileInfo>());
@@ -109,7 +109,7 @@ public class LocalFileStorage : IFileStorage
         }
 
         var dataDir = GetScenarioDataDir(scenarioId);
-        var fullPath = Path.Combine(dataDir, relativePath);
+        var fullPath = PathHelper.Combine(dataDir, relativePath);
 
         // Prevent directory traversal
         if (!Path.GetFullPath(fullPath).StartsWith(Path.GetFullPath(dataDir)))

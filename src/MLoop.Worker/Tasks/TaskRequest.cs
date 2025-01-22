@@ -14,6 +14,6 @@ public record TaskRequest
     /// </summary>
     public TimeSpan? Timeout { get; init; }
 
-    public required WorkflowContext Context { get; init; }  // 컨텍스트 추가
+    public required JobContext Context { get; init; }  // 컨텍스트 추가
 
 }

@@ -293,4 +293,42 @@ public class JobManager : ScenarioManagerBase<MLJob>
     {
         return _storage.GetJobLogsPath(scenarioId, jobId);
     }
+
+    public async Task<MLJob?> FindAndClaimNextJobAsync(string workerId)
+    {
+        // 1. 파일 시스템 락 획득
+        using var lockFile = await AcquireJobLockAsync();
+        if (lockFile == null) return null;
+
+        try
+        {
+            // 2. 모든 시나리오 조회
+            var scenarios = await _storage.GetScenarioIdsAsync();
+
+            // 3. 각 시나리오의 대기 중인 작업 검색
+            foreach (var scenarioId in scenarios)
+            {
+                var jobs = await GetScenarioJobsAsync(scenarioId);
+                var waitingJob = jobs.FirstOrDefault(j => j.Status == MLJobStatus.Waiting);
+
+                if (waitingJob != null)
+                {
+                    // 4. 작업을 찾으면 해당 작업을 클레임
+                    await UpdateJobStatusAsync(
+                        waitingJob,
+                        MLJobStatus.Running,
+                        workerId,
+                        "Job claimed by worker");
+
+                    return waitingJob;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error finding next job");
+        }
+
+        return null;
+    }
 }

@@ -17,9 +17,9 @@ public interface IFileStorage
     string GetJobLogsPath(string scenarioId, string jobId);
     Task<IEnumerable<FileInfo>> GetScenarioJobFilesAsync(string scenarioId);
 
-    string GetPredictionDir(string scenarioId, string predictionId);
-    string GetPredictionInputPath(string scenarioId, string predictionId, string extension);
-    string GetPredictionResultPath(string scenarioId, string predictionId);
+    string GetPredictionDir(string scenarioId, string jobId);
+    string GetPredictionInputPath(string scenarioId, string jobId, string extension);
+    string GetPredictionResultPath(string scenarioId, string jobId);
 
     string GetPredictionsDir(string scenarioId);
     Task<IEnumerable<FileInfo>> GetPredictionFiles(string scenarioId, string modelId);

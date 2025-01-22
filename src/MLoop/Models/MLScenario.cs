@@ -24,7 +24,7 @@ public class MLScenario
 
     public string? BestModelId { get; set; }
 
-    public MLScenario()
+    public MLScenario() 
     {
         CreatedAt = DateTime.UtcNow;
     }

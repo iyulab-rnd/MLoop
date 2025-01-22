@@ -8,17 +8,12 @@ public enum MLJobStatus
     Failed
 }
 
-public enum MLJobType
-{
-    Train,
-    Predict
-}
-
 public class MLJob : IScenarioEntity
 {
     public string JobId { get; set; } = string.Empty;
     public string ScenarioId { get; set; } = string.Empty;
     public MLJobStatus Status { get; set; } = MLJobStatus.Waiting;
+    public string? ModelId { get; set; }
     public string? WorkerId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? StartedAt { get; set; }
@@ -28,8 +23,7 @@ public class MLJob : IScenarioEntity
     public string WorkflowName { get; set; } = string.Empty;
     public List<MLJobStatusHistory> StatusHistory { get; set; } = [];
     public JobFailureType FailureType { get; set; }
-    public string? ModelId { get; set; }
-    public MLJobType JobType { get; set; } = MLJobType.Train;
+    public JobTypes Type { get; set; } = JobTypes.Train;
     public Dictionary<string, object> Variables { get; set; } = [];
 
     public void AddStatusHistory(MLJobStatus status, string? workerId = null, string? message = null)
@@ -67,5 +61,16 @@ public class MLJob : IScenarioEntity
         ErrorMessage = message;
         WorkerId = null;
         AddStatusHistory(Status, null, message);
+    }
+
+    public string? GetModelId()
+    {
+        if (ModelId != null)
+            return ModelId;
+
+        else if (Variables.TryGetValue("modelId", out var modelId)) return modelId.ToString();
+
+        else
+            return null;
     }
 }
