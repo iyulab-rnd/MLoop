@@ -4,9 +4,16 @@ namespace MLoop.Storages;
 
 public interface IFileStorage
 {
+    string GetDatasetsBaseDir();
+    string GetDatasetPath(string name);
+    string GetDatasetDataDir(string name);
+    string GetDatasetMetadataPath(string name);
+    Task<IEnumerable<string>> GetDatasetNamesAsync();
+    Task<IEnumerable<DirectoryEntry>> GetDatasetEntriesAsync(string name, string? path = null);
+    (bool isValid, string? fullPath, string? error) ValidateDatasetPath(string name, string relativePath);
+
     Task<IEnumerable<string>> GetScenarioIdsAsync();
     string GetScenarioBaseDir(string scenarioId);
-    string GetScenarioDataDir(string scenarioId);
     string GetScenarioModelsDir(string scenarioId);
     string GetScenarioMetadataPath(string scenarioId);
 
@@ -23,7 +30,4 @@ public interface IFileStorage
 
     string GetPredictionsDir(string scenarioId);
     Task<IEnumerable<FileInfo>> GetPredictionFiles(string scenarioId, string modelId);
-
-    Task<IEnumerable<DirectoryEntry>> GetScenarioDataEntriesAsync(string scenarioId, string? path = null);
-    (bool isValid, string? fullPath, string? error) ValidateAndGetFullPath(string scenarioId, string relativePath);
 }

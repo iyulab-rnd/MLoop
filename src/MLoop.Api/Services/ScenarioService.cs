@@ -1,6 +1,5 @@
 ﻿using MLoop.Api.Models.Scenarios;
 using MLoop.Models.Jobs;
-using MLoop.Models.Workflows;
 using MLoop.Models;
 using MLoop.Services;
 using MLoop.Storages;
@@ -9,6 +8,7 @@ namespace MLoop.Api.Services;
 
 public class ScenarioService
 {
+    private readonly DatasetManager _datasetManager;
     private readonly ScenarioManager _scenarioManager;
     private readonly ScenarioHandler _scenarioHandler;
     private readonly JobService _jobService;
@@ -17,6 +17,7 @@ public class ScenarioService
     private readonly ILogger<ScenarioService> _logger;
 
     public ScenarioService(
+        DatasetManager datasetManager,
         ScenarioManager scenarioManager,
         ScenarioHandler scenarioHandler,
         JobService jobService,
@@ -24,6 +25,7 @@ public class ScenarioService
         IFileStorage storage,
         ILogger<ScenarioService> logger)
     {
+        _datasetManager = datasetManager;
         _scenarioManager = scenarioManager;
         _scenarioHandler = scenarioHandler;
         _jobService = jobService;
@@ -32,24 +34,35 @@ public class ScenarioService
         _logger = logger;
     }
 
-    public Task<(bool isValid, List<string> issues)> ValidateTrainingPrerequisitesAsync(string scenarioId)
+    public async Task<(bool isValid, List<string> issues)> ValidateTrainingPrerequisitesAsync(
+        string scenarioId,
+        string workflowName = "default_train")
     {
         var issues = new List<string>();
-        var dataDir = _storage.GetScenarioDataDir(scenarioId);
 
-        if (!Directory.Exists(dataDir))
+        var workflow = await _workflowService.GetAsync(scenarioId, workflowName);
+        if (workflow == null || string.IsNullOrEmpty(workflow.DatasetName))
         {
-            issues.Add("Training data directory not found");
-            return Task.FromResult<(bool isValid, List<string> issues)>((false, issues));
+            issues.Add("No dataset specified in workflow");
+            return (false, issues);
         }
 
-        if (!Directory.EnumerateFiles(dataDir, "*.*", SearchOption.AllDirectories).Any())
+        var dataset = await _datasetManager.LoadAsync(workflow.DatasetName);
+        if (dataset == null)
         {
-            issues.Add("No training data files found");
-            return Task.FromResult<(bool isValid, List<string> issues)>((false, issues));
+            issues.Add($"Dataset '{workflow.DatasetName}' not found");
+            return (false, issues);
         }
 
-        return Task.FromResult<(bool isValid, List<string> issues)>((true, issues));
+        var dataDir = _storage.GetDatasetDataDir(workflow.DatasetName);
+        if (!Directory.Exists(dataDir) ||
+            !Directory.EnumerateFiles(dataDir, "*.*", SearchOption.AllDirectories).Any())
+        {
+            issues.Add($"No data files found in dataset '{workflow.DatasetName}'");
+            return (false, issues);
+        }
+
+        return (true, issues);
     }
 
     public async Task<object?> GetScenarioStatusAsync(string scenarioId)
@@ -66,7 +79,6 @@ public class ScenarioService
             scenario.ScenarioId,
             scenario.Name,
             scenario.MLType,
-            HasTrainingData = Directory.Exists(_storage.GetScenarioDataDir(scenarioId)),
             LatestJobStatus = latestJob?.Status.ToString(),
             LatestJobType = latestJob?.Type.ToString(),
             LastUpdated = latestJob?.CompletedAt ?? scenario.CreatedAt
@@ -116,8 +128,6 @@ public class ScenarioService
             throw new WorkflowNotFoundException(workflowName, scenarioId);
         }
 
-        await ValidateTrainingPrerequisites(scenarioId);
-
         // 이미 실행 중인 training job이 있는지 확인
         var existingJobs = await _jobService.GetScenarioJobsAsync(scenarioId);
         var runningJob = existingJobs.FirstOrDefault(j =>
@@ -136,16 +146,5 @@ public class ScenarioService
             workflow.Environment);
 
         return (jobId, MLJobStatus.Waiting);
-    }
-
-    private Task ValidateTrainingPrerequisites(string scenarioId)
-    {
-        var dataDir = _storage.GetScenarioDataDir(scenarioId);
-        if (!Directory.Exists(dataDir) || !Directory.EnumerateFiles(dataDir, "*.*", SearchOption.AllDirectories).Any())
-        {
-            throw new ValidationException("No training data found. Please upload data files first.");
-        }
-
-        return Task.CompletedTask;
     }
 }

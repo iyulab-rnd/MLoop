@@ -71,20 +71,23 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddStorage(builder.Configuration);
 
 // Core services
+builder.Services.AddSingleton<DatasetManager>();
 builder.Services.AddSingleton<ScenarioManager>();
-builder.Services.AddSingleton<JobManager>();
 builder.Services.AddSingleton<WorkflowManager>();
+builder.Services.AddSingleton<JobManager>();
 
 // Add Handlers
-builder.Services.AddScoped<JobHandler>();
-builder.Services.AddScoped<WorkflowHandler>();
+builder.Services.AddScoped<DatasetHandler>();
 builder.Services.AddScoped<ScenarioHandler>();
+builder.Services.AddScoped<WorkflowHandler>();
+builder.Services.AddScoped<JobHandler>();
 builder.Services.AddScoped<ModelHandler>();
 
 // Services
-builder.Services.AddScoped<JobService>();
-builder.Services.AddScoped<WorkflowService>();
+builder.Services.AddScoped<DatasetService>();
 builder.Services.AddScoped<ScenarioService>();
+builder.Services.AddScoped<WorkflowService>();
+builder.Services.AddScoped<JobService>();
 builder.Services.AddScoped<ModelService>();
 
 var app = builder.Build();

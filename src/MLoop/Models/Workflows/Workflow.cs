@@ -17,6 +17,9 @@ public class Workflow : IScenarioEntity
     [YamlMember(Alias = "env")]
     public Dictionary<string, object> Environment { get; set; } = [];
 
+    [YamlMember(Alias = "dataset")]
+    public string? DatasetName { get; set; }  // DatasetId -> DatasetName 변경
+
     public List<WorkflowStep> Steps { get; set; } = [];
 
     [YamlIgnore]
